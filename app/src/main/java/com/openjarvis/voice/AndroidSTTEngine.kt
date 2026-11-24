@@ -1,3 +1,4 @@
+
 package com.openjarvis.voice
 
 import android.content.Context
@@ -27,7 +28,8 @@ class AndroidSTTEngine(private val context: Context) : STTEngine {
 
     private var recognizer: SpeechRecognizer? = null
     private var audioRecord: AudioRecord? = null
-    private var _isListening = MutableStateFlow(false)
+
+    private val _isListening = MutableStateFlow(false)
     val isListeningState: StateFlow<Boolean> = _isListening
 
     private var currentCallback: ((String?) -> Unit)? = null
@@ -42,109 +44,170 @@ class AndroidSTTEngine(private val context: Context) : STTEngine {
 
     init {
         mainHandler.post {
-            recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-            recognizer?.setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) {
-                    _isListening.value = true
-                }
+            if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                recognizer = SpeechRecognizer.createSpeechRecognizer(context)
 
-                override fun onBeginningOfSpeech() {}
+                recognizer?.setRecognitionListener(object : RecognitionListener {
 
-                override fun onRmsChanged(rmsdB: Float) {
-                    if (rmsdB * 100 < SILENCE_THRESHOLD) {
-                        if (silenceStartTime < 0) {
-                            silenceStartTime = System.currentTimeMillis()
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        _isListening.value = true
+                    }
+
+                    override fun onBeginningOfSpeech() {}
+
+                    override fun onRmsChanged(rmsdB: Float) {
+                        if (rmsdB * 100 < SILENCE_THRESHOLD) {
+                            if (silenceStartTime < 0) {
+                                silenceStartTime = System.currentTimeMillis()
+                            }
+
+                            val silenceDuration =
+                                System.currentTimeMillis() - silenceStartTime
+
+                            if (silenceDuration >= SILENCE_TIMEOUT_MS &&
+                                audioRecord != null
+                            ) {
+                                stopListeningEarly()
+                            }
+                        } else {
+                            silenceStartTime = -1
                         }
-                        val silenceDuration = System.currentTimeMillis() - silenceStartTime
-                        if (silenceDuration >= SILENCE_TIMEOUT_MS && audioRecord != null) {
-                            stopListeningEarly()
+                    }
+
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+
+                    override fun onEndOfSpeech() {
+                        _isListening.value = false
+                    }
+
+                    override fun onError(error: Int) {
+                        _isListening.value = false
+
+                        val errorMessage = when (error) {
+                            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+                            SpeechRecognizer.ERROR_CLIENT -> "Client error"
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Missing permissions"
+                            SpeechRecognizer.ERROR_NETWORK -> "Network error"
+                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+                            SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected"
+                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognizer busy"
+                            SpeechRecognizer.ERROR_SERVER -> "Server error"
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
+                            else -> "Unknown error"
                         }
-                    } else {
-                        silenceStartTime = -1
+
+                        if (pendingResult.isNullOrBlank()) {
+                            currentErrorCallback?.invoke(errorMessage)
+                        }
                     }
-                }
 
-                override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onResults(results: Bundle?) {
+                        _isListening.value = false
 
-                override fun onEndOfSpeech() {
-                    _isListening.value = false
-                }
+                        val matches = results?.getStringArrayList(
+                            SpeechRecognizer.RESULTS_RECOGNITION
+                        )
 
-                override fun onError(error: Int) {
-                    _isListening.value = false
-                    val errorMessage = when (error) {
-                        SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-                        SpeechRecognizer.ERROR_CLIENT -> "Client error"
-                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Missing permissions"
-                        SpeechRecognizer.ERROR_NETWORK -> "Network error"
-                        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
-                        SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected"
-                        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognizer busy"
-                        SpeechRecognizer.ERROR_SERVER -> "Server error"
-                        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
-                        else -> "Unknown error"
+                        val text = matches?.firstOrNull()?.trim()
+
+                        if (!text.isNullOrBlank()) {
+                            pendingResult = text
+                            currentCallback?.invoke(text)
+                        } else {
+                            currentErrorCallback?.invoke("No speech detected")
+                        }
                     }
-                    if (pendingResult.isNullOrBlank()) {
-                        currentErrorCallback?.invoke(errorMessage)
-                    }
-                }
 
-                override fun onResults(results: Bundle?) {
-                    _isListening.value = false
-                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    val text = matches?.firstOrNull()?.trim()
-                    if (!text.isNullOrBlank()) {
-                        pendingResult = text
-                        currentCallback?.invoke(text)
-                    } else {
-                        currentErrorCallback?.invoke("No speech detected")
-                    }
-                }
+                    override fun onPartialResults(partialResults: Bundle?) {}
 
-                override fun onPartialResults(partialResults: Bundle?) {}
-
-                override fun onEvent(eventType: Int, params: Bundle?) {}
-            })
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+            } else {
+                currentErrorCallback?.invoke(
+                    "Speech recognition is not available on this device"
+                )
+            }
         }
     }
 
-    override fun startListening(onResult: (String?) -> Unit, onError: (String) -> Unit) {
+    override fun startListening(
+        onResult: (String?) -> Unit,
+        onError: (String) -> Unit
+    ) {
         currentCallback = onResult
         currentErrorCallback = onError
         pendingResult = null
         silenceStartTime = -1L
 
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_CONFIDENCE_THRESHOLD, 0.1f)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, SILENCE_TIMEOUT_MS)
-        }
+        mainHandler.post {
+            val speechRecognizer = recognizer
 
-        recognizer?.startListening(intent)
+            if (speechRecognizer == null) {
+                currentErrorCallback?.invoke(
+                    "Speech recognizer is not available"
+                )
+                return@post
+            }
+
+            try {
+                val intent = Intent(
+                    RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+                ).apply {
+                    putExtra(
+                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                    )
+                    putExtra(
+                        RecognizerIntent.EXTRA_LANGUAGE,
+                        Locale.getDefault().toLanguageTag()
+                    )
+                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    putExtra(
+                        RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
+                        SILENCE_TIMEOUT_MS
+                    )
+                }
+
+                speechRecognizer.startListening(intent)
+
+            } catch (e: Exception) {
+                _isListening.value = false
+                currentErrorCallback?.invoke(
+                    e.message ?: "Could not start speech recognition"
+                )
+            }
+        }
     }
 
     private fun stopListeningEarly() {
-        recognizer?.stopListening()
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
+        mainHandler.post {
+            try {
+                recognizer?.stopListening()
+            } catch (_: Exception) {
+            }
+
+            releaseAudioRecord()
+        }
     }
 
     override fun stop(): String? {
         _isListening.value = false
-        recognizer?.stopListening()
-        
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
-        
+
+        mainHandler.post {
+            try {
+                recognizer?.stopListening()
+            } catch (_: Exception) {
+            }
+        }
+
+        releaseAudioRecord()
+
         val result = pendingResult
         pendingResult = null
         currentCallback = null
         currentErrorCallback = null
+
         return result
     }
 
@@ -152,67 +215,139 @@ class AndroidSTTEngine(private val context: Context) : STTEngine {
 
     override fun release() {
         stop()
-        recognizer?.destroy()
-        recognizer = null
+
+        mainHandler.post {
+            try {
+                recognizer?.destroy()
+            } catch (_: Exception) {
+            }
+
+            recognizer = null
+        }
+
         scope.cancel()
     }
 
-    // Push-to-talk: start audio capture manually (for VAD mode)
     fun startAudioCapture(): Boolean {
         val bufferSize = AudioRecord.getMinBufferSize(
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         )
-        
+
+        if (bufferSize <= 0) return false
+
         return try {
-            audioRecord = AudioRecord(
+            releaseAudioRecord()
+
+            val recorder = AudioRecord(
                 MediaRecorder.AudioSource.MIC,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
                 bufferSize * 4
             )
-            audioRecord?.startRecording()
+
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                recorder.release()
+                return false
+            }
+
+            recorder.startRecording()
+
+            if (recorder.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                recorder.release()
+                return false
+            }
+
+            audioRecord = recorder
             recordingStartTime = System.currentTimeMillis()
+            silenceStartTime = -1L
+            _isListening.value = true
+
             true
+
         } catch (e: SecurityException) {
+            releaseAudioRecord()
+            false
+        } catch (e: Exception) {
+            releaseAudioRecord()
             false
         }
     }
 
-    // Capture audio with VAD
     suspend fun captureWithVAD(): FloatArray = withContext(Dispatchers.IO) {
+        val recorder = audioRecord ?: return@withContext FloatArray(0)
+
         val bufferSize = AudioRecord.getMinBufferSize(
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         )
-        val shortBuffer = ShortArray(bufferSize / 2)
+
+        if (bufferSize <= 0) return@withContext FloatArray(0)
+
+        val shortBuffer = ShortArray((bufferSize / 2).coerceAtLeast(1))
         val allSamples = mutableListOf<Short>()
 
         while (_isListening.value) {
             val elapsed = System.currentTimeMillis() - recordingStartTime
+
             if (elapsed >= MAX_RECORDING_MS) break
 
-            val read = audioRecord?.read(shortBuffer, 0, shortBuffer.size) ?: break
+            val read = try {
+                recorder.read(shortBuffer, 0, shortBuffer.size)
+            } catch (_: Exception) {
+                break
+            }
+
             if (read <= 0) continue
 
-            allSamples.addAll(shortBuffer.take(read))
+            for (i in 0 until read) {
+                allSamples.add(shortBuffer[i])
+            }
 
-            // Simple VAD: check max amplitude
-            val amplitude = shortBuffer.take(read).maxOfOrNull { kotlin.math.abs(it.toInt()) } ?: 0
+            var amplitude = 0
+
+            for (i in 0 until read) {
+                amplitude = maxOf(
+                    amplitude,
+                    kotlin.math.abs(shortBuffer[i].toInt())
+                )
+            }
+
             if (amplitude < SILENCE_THRESHOLD) {
-                if (silenceStartTime < 0) silenceStartTime = System.currentTimeMillis()
+                if (silenceStartTime < 0) {
+                    silenceStartTime = System.currentTimeMillis()
+                }
+
                 if (System.currentTimeMillis() - silenceStartTime >= SILENCE_TIMEOUT_MS) {
-                    stop()
                     break
                 }
             } else {
-                silenceStartTime = -1
+                silenceStartTime = -1L
             }
         }
 
-        allSamples.map { it.toFloat() / Short.MAX_VALUE }.toFloatArray()
+        releaseAudioRecord()
+        _isListening.value = false
+
+        allSamples.map {
+            it.toFloat() / Short.MAX_VALUE
+        }.toFloatArray()
+    }
+
+    private fun releaseAudioRecord() {
+        try {
+            audioRecord?.let { recorder ->
+                if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    recorder.stop()
+                }
+                recorder.release()
+            }
+        } catch (_: Exception) {
+        } finally {
+            audioRecord = null
+        }
     }
 }
