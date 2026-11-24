@@ -1,7 +1,14 @@
+
 package com.openjarvis.ui.dashboard
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,21 +27,37 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openjarvis.graphify.GraphifyRepository
 import com.openjarvis.graphify.nodes.AppNode
 import com.openjarvis.graphify.nodes.TaskNode
-import com.openjarvis.ui.theme.VoidColor
 import kotlinx.coroutines.delay
+
+private val JarvisBackground = Color(0xFF080812)
+private val JarvisSurface = Color(0xFF151525)
+private val JarvisSurfaceDark = Color(0xFF10101D)
+private val JarvisViolet = Color(0xFF9B6DFF)
+private val JarvisCyan = Color(0xFF42D9F5)
+private val JarvisGreen = Color(0xFF42D392)
+private val JarvisRed = Color(0xFFFF647C)
+private val JarvisAmber = Color(0xFFFFC66D)
+private val JarvisText = Color(0xFFF2F0FF)
+private val JarvisSecondary = Color(0xFFAAA8C0)
+private val JarvisDisabled = Color(0xFF77758D)
+private val JarvisBorder = Color(0xFF303047)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,39 +67,49 @@ fun DashboardScreen(
     graphifyRepo: GraphifyRepository,
     modifier: Modifier = Modifier
 ) {
-    var recentTasks by remember { mutableStateOf<List<TaskNode>>(emptyList()) }
-    var mostUsedApps by remember { mutableStateOf<List<AppNode>>(emptyList()) }
-    var isSystemActive by remember { mutableStateOf(true) }
-    
-    var heroAlpha by remember { mutableFloatStateOf(0f) }
+    var recentTasks by remember {
+        mutableStateOf<List<TaskNode>>(emptyList())
+    }
+
+    var mostUsedApps by remember {
+        mutableStateOf<List<AppNode>>(emptyList())
+    }
+
+    var isSystemActive by remember {
+        mutableStateOf(true)
+    }
+
     var statsAlpha by remember { mutableFloatStateOf(0f) }
     var tasksAlpha by remember { mutableFloatStateOf(0f) }
     var appsAlpha by remember { mutableFloatStateOf(0f) }
-    
+
     LaunchedEffect(Unit) {
-        recentTasks = graphifyRepo.getRecentTasks(10)
-        mostUsedApps = graphifyRepo.getMostUsedApps(4)
+        try {
+            recentTasks = graphifyRepo.getRecentTasks(10)
+            mostUsedApps = graphifyRepo.getMostUsedApps(4)
+        } catch (e: Exception) {
+            recentTasks = emptyList()
+            mostUsedApps = emptyList()
+        }
     }
-    
+
     LaunchedEffect(Unit) {
-        heroAlpha = 1f
-        delay(150)
         statsAlpha = 1f
         delay(150)
         tasksAlpha = 1f
         delay(200)
         appsAlpha = 1f
     }
-    
+
     val scrollState = rememberScrollState()
-    
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(VoidColor.Void950)
+            .background(JarvisBackground)
     ) {
         OrbBackground()
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -85,26 +118,38 @@ fun DashboardScreen(
                 .padding(horizontal = 24.dp)
         ) {
             Spacer(modifier = Modifier.height(56.dp))
-            
+
             HeroSection(isSystemActive = isSystemActive)
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            StatsRow(tasks = recentTasks, alpha = statsAlpha)
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
-            RecentTasksSection(tasks = recentTasks, alpha = tasksAlpha)
-            
+
+            StatsRow(
+                tasks = recentTasks,
+                apps = mostUsedApps,
+                alpha = statsAlpha
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
-            
-            QuickAppsSection(apps = mostUsedApps, alpha = appsAlpha)
-            
-            Spacer(modifier = Modifier.height(32.dp))
+
+            RecentTasksSection(
+                tasks = recentTasks,
+                alpha = tasksAlpha
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            QuickAppsSection(
+                apps = mostUsedApps,
+                alpha = appsAlpha
+            )
+
+            Spacer(modifier = Modifier.height(100.dp))
         }
-        
+
         BottomNavBar(
             onSettingsClick = onOpenSettings,
+            onHomeClick = { },
+            onTasksClick = onStartOverlay,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
@@ -112,24 +157,33 @@ fun DashboardScreen(
 
 @Composable
 private fun OrbBackground() {
-    val infiniteTransition = rememberInfiniteTransition(label = "orb")
-    
+    val infiniteTransition = rememberInfiniteTransition(
+        label = "orb"
+    )
+
     val offsetY by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = -20f,
         animationSpec = infiniteRepeatable(
-            animation = tween(8000, easing = FastOutSlowInEasing),
+            animation = tween(
+                8000,
+                easing = FastOutSlowInEasing
+            ),
             repeatMode = RepeatMode.Reverse
         ),
         label = "orb_y"
     )
-    
+
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val center = Offset(size.width / 2, 200.dp.toPx() + offsetY.dp.toPx())
+        val center = Offset(
+            size.width / 2,
+            200.dp.toPx() + offsetY.dp.toPx()
+        )
+
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    VoidColor.Violet.copy(alpha = 0.06f),
+                    JarvisViolet.copy(alpha = 0.10f),
                     Color.Transparent
                 ),
                 center = center,
@@ -146,122 +200,132 @@ private fun HeroSection(isSystemActive: Boolean) {
     Column {
         Surface(
             shape = RoundedCornerShape(999.dp),
-            color = VoidColor.Void800,
-            border = androidx.compose.foundation.BorderStroke(1.dp, VoidColor.BorderGlow)
+            color = JarvisSurface,
+            border = BorderStroke(1.dp, JarvisViolet.copy(alpha = 0.4f))
         ) {
             Text(
                 text = "AI AGENT v0.1",
                 style = TextStyle(
                     fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(500),
+                    fontWeight = FontWeight.Medium,
                     fontSize = 10.sp,
                     letterSpacing = 4.sp,
-                    color = VoidColor.Violet
+                    color = JarvisViolet
                 ),
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                modifier = Modifier.padding(
+                    horizontal = 12.dp,
+                    vertical = 6.dp
+                )
             )
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         val annotatedText = buildAnnotatedString {
-            withStyle(androidx.compose.ui.text.SpanStyle(color = VoidColor.TextPrimary)) {
+            withStyle(
+                SpanStyle(color = JarvisText)
+            ) {
                 append("OPEN")
             }
+
             append(" ")
-            withStyle(androidx.compose.ui.text.SpanStyle(
-                brush = Brush.linearGradient(
-                    colors = listOf(VoidColor.Violet, VoidColor.Cyan)
+
+            withStyle(
+                SpanStyle(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            JarvisViolet,
+                            JarvisCyan
+                        )
+                    )
                 )
-            )) {
+            ) {
                 append("JARVIS")
             }
         }
-        
+
         Text(
             text = annotatedText,
             style = TextStyle(
                 fontFamily = FontFamily.Default,
-                fontWeight = FontWeight(700),
+                fontWeight = FontWeight.Bold,
                 fontSize = 38.sp,
                 letterSpacing = (-0.5).sp
             )
         )
-        
+
         Text(
             text = "Your device. Your commands.",
             style = TextStyle(
-                fontFamily = FontFamily.Default,
-                fontWeight = FontWeight(400),
                 fontSize = 13.sp,
-                color = VoidColor.TextDisabled
+                color = JarvisDisabled
             )
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         StatusBadge(isActive = isSystemActive)
     }
 }
 
 @Composable
 private fun StatusBadge(isActive: Boolean) {
-    val infiniteTransition = rememberInfiniteTransition(label = "badge")
-    
+    val infiniteTransition = rememberInfiniteTransition(
+        label = "badge"
+    )
+
     val dotScale by infiniteTransition.animateFloat(
         initialValue = 0.7f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(
+                1500,
+                easing = FastOutSlowInEasing
+            ),
             repeatMode = RepeatMode.Reverse
         ),
         label = "dot_scale"
     )
-    
-    val (bgColor, borderColor, textColor, dotColor) = if (isActive) {
-        listOf(
-            VoidColor.Green.copy(alpha = 0.08f),
-            VoidColor.Green.copy(alpha = 0.25f),
-            VoidColor.Green,
-            VoidColor.Green
-        )
-    } else {
-        listOf(
-            VoidColor.Red.copy(alpha = 0.08f),
-            VoidColor.Red.copy(alpha = 0.25f),
-            VoidColor.Red,
-            VoidColor.Red
-        )
-    }
-    
+
+    val statusColor = if (isActive) JarvisGreen else JarvisRed
+
     Surface(
         shape = RoundedCornerShape(999.dp),
-        color = bgColor,
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+        color = statusColor.copy(alpha = 0.08f),
+        border = BorderStroke(
+            1.dp,
+            statusColor.copy(alpha = 0.25f)
+        )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(
+                horizontal = 12.dp,
+                vertical = 8.dp
+            ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(6.dp)
+                    .size(7.dp)
                     .scale(if (isActive) dotScale else 1f)
-            ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawCircle(color = dotColor)
-                }
-            }
-            
+                    .background(
+                        statusColor,
+                        RoundedCornerShape(50)
+                    )
+            )
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             Text(
-                text = if (isActive) "System Active" else "Tap to Activate",
+                text = if (isActive) {
+                    "System Active"
+                } else {
+                    "Tap to Activate"
+                },
                 style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(500),
                     fontSize = 12.sp,
-                    color = textColor
+                    fontWeight = FontWeight.Medium,
+                    color = statusColor
                 )
             )
         }
@@ -269,44 +333,57 @@ private fun StatusBadge(isActive: Boolean) {
 }
 
 @Composable
-private fun StatsRow(tasks: List<TaskNode>, alpha: Float) {
+private fun StatsRow(
+    tasks: List<TaskNode>,
+    apps: List<AppNode>,
+    alpha: Float
+) {
     val animatedCount by animateIntAsState(
-        targetValue = tasks.size.coerceAtLeast(0),
-        animationSpec = tween(500, easing = EaseOutQuart),
+        targetValue = tasks.size,
+        animationSpec = tween(
+            500,
+            easing = FastOutSlowInEasing
+        ),
         label = "count"
     )
-    
-    Column(alpha = alpha) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            StatCard(
-                count = animatedCount,
-                label = "Tasks Done",
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                count = 0,
-                label = "Apps Used",
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                count = 0,
-                label = "Patterns",
-                modifier = Modifier.weight(1f)
-            )
-        }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(alpha),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        StatCard(
+            count = animatedCount,
+            label = "Tasks Done",
+            modifier = Modifier.weight(1f)
+        )
+
+        StatCard(
+            count = apps.size,
+            label = "Apps Used",
+            modifier = Modifier.weight(1f)
+        )
+
+        StatCard(
+            count = 0,
+            label = "Patterns",
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 @Composable
-private fun StatCard(count: Int, label: String, modifier: Modifier = Modifier) {
+private fun StatCard(
+    count: Int,
+    label: String,
+    modifier: Modifier = Modifier
+) {
     Surface(
         modifier = modifier.height(72.dp),
         shape = RoundedCornerShape(14.dp),
-        color = VoidColor.Void800,
-        border = androidx.compose.foundation.BorderStroke(1.dp, VoidColor.BorderSubtle)
+        color = JarvisSurface,
+        border = BorderStroke(1.dp, JarvisBorder)
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -315,19 +392,17 @@ private fun StatCard(count: Int, label: String, modifier: Modifier = Modifier) {
             Text(
                 text = count.toString(),
                 style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(700),
+                    fontWeight = FontWeight.Bold,
                     fontSize = 22.sp,
-                    color = VoidColor.TextPrimary
+                    color = JarvisText
                 )
             )
+
             Text(
                 text = label,
                 style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(400),
                     fontSize = 11.sp,
-                    color = VoidColor.TextDisabled
+                    color = JarvisDisabled
                 )
             )
         }
@@ -335,48 +410,37 @@ private fun StatCard(count: Int, label: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun RecentTasksSection(tasks: List<TaskNode>, alpha: Float) {
-    Column(alpha = alpha) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "RECENT TASKS",
-                style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(600),
-                    fontSize = 10.sp,
-                    letterSpacing = 3.sp,
-                    color = VoidColor.TextDisabled
-                )
+private fun RecentTasksSection(
+    tasks: List<TaskNode>,
+    alpha: Float
+) {
+    Column(
+        modifier = Modifier.alpha(alpha)
+    ) {
+        Text(
+            text = "RECENT TASKS",
+            style = TextStyle(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 10.sp,
+                letterSpacing = 3.sp,
+                color = JarvisDisabled
             )
-            Text(
-                text = "see all →",
-                style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(500),
-                    fontSize = 11.sp,
-                    color = VoidColor.Violet
-                )
-            )
-        }
-        
+        )
+
         Spacer(modifier = Modifier.height(12.dp))
-        
+
         if (tasks.isEmpty()) {
             Text(
                 text = "No tasks yet. Try opening an app!",
                 style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(400),
                     fontSize = 13.sp,
-                    color = VoidColor.TextDisabled
+                    color = JarvisDisabled
                 )
             )
         } else {
-            tasks.take(5).forEachIndexed { index, task ->
+            tasks.take(5).forEach { task ->
                 TaskCard(task = task)
+
                 Spacer(modifier = Modifier.height(10.dp))
             }
         }
@@ -385,16 +449,27 @@ private fun RecentTasksSection(tasks: List<TaskNode>, alpha: Float) {
 
 @Composable
 private fun TaskCard(task: TaskNode) {
-    val isSuccess = task.result.contains("Opened") || task.result.contains("Success")
-    val outcomeColor = if (isSuccess) VoidColor.Green else VoidColor.Red
-    
+    val isSuccess = task.result.contains(
+        "Opened",
+        ignoreCase = true
+    ) || task.result.contains(
+        "Success",
+        ignoreCase = true
+    )
+
+    val outcomeColor = if (isSuccess) {
+        JarvisGreen
+    } else {
+        JarvisRed
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp),
         shape = RoundedCornerShape(16.dp),
-        color = VoidColor.Void900,
-        border = androidx.compose.foundation.BorderStroke(1.dp, VoidColor.BorderSubtle)
+        color = JarvisSurfaceDark,
+        border = BorderStroke(1.dp, JarvisBorder)
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
             Box(
@@ -403,10 +478,13 @@ private fun TaskCard(task: TaskNode) {
                     .fillMaxHeight()
                     .background(
                         color = outcomeColor,
-                        shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                        shape = RoundedCornerShape(
+                            topStart = 16.dp,
+                            bottomStart = 16.dp
+                        )
                     )
             )
-            
+
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -422,53 +500,57 @@ private fun TaskCard(task: TaskNode) {
                         style = TextStyle(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 12.sp,
-                            color = VoidColor.TextPrimary
+                            color = JarvisText
                         ),
                         maxLines = 1,
                         modifier = Modifier.weight(1f)
                     )
-                    
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     Text(
                         text = formatRelativeTime(task.timestamp),
                         style = TextStyle(
-                            fontFamily = FontFamily.Default,
                             fontSize = 10.sp,
-                            color = VoidColor.TextDisabled
+                            color = JarvisDisabled
                         )
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     AppInitialBadge(label = task.command)
-                    
+
                     Spacer(modifier = Modifier.width(8.dp))
-                    
+
                     Text(
                         text = "System App",
                         style = TextStyle(
-                            fontFamily = FontFamily.Default,
                             fontSize = 11.sp,
-                            color = VoidColor.TextDisabled
+                            color = JarvisDisabled
                         )
                     )
-                    
+
                     Spacer(modifier = Modifier.weight(1f))
-                    
+
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = VoidColor.Green.copy(alpha = 0.12f)
+                        color = outcomeColor.copy(alpha = 0.12f)
                     ) {
                         Text(
                             text = if (isSuccess) "done" else "failed",
                             style = TextStyle(
-                                fontFamily = FontFamily.Default,
-                                fontWeight = FontWeight(500),
+                                fontWeight = FontWeight.Medium,
                                 fontSize = 10.sp,
                                 color = outcomeColor
                             ),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(
+                                horizontal = 8.dp,
+                                vertical = 4.dp
+                            )
                         )
                     }
                 }
@@ -479,24 +561,31 @@ private fun TaskCard(task: TaskNode) {
 
 @Composable
 private fun AppInitialBadge(label: String) {
-    val colors = listOf(VoidColor.Violet, VoidColor.Cyan, VoidColor.Green, VoidColor.Amber)
-    val colorIndex = label.hashCode().mod(colors.size)
+    val colors = listOf(
+        JarvisViolet,
+        JarvisCyan,
+        JarvisGreen,
+        JarvisAmber
+    )
+
+    val colorIndex = (label.hashCode().toLong()
+        .and(Long.MAX_VALUE) % colors.size).toInt()
+
     val bgColor = colors[colorIndex]
     val initial = label.firstOrNull()?.uppercaseChar() ?: 'J'
-    
+
     Box(
         modifier = Modifier
-            .size(16.dp)
-            .clip(RoundedCornerShape(4.dp))
+            .size(20.dp)
+            .clip(RoundedCornerShape(5.dp))
             .background(bgColor),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = initial.toString(),
             style = TextStyle(
-                fontFamily = FontFamily.Default,
-                fontWeight = FontWeight(700),
-                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp,
                 color = Color.White
             )
         )
@@ -504,29 +593,43 @@ private fun AppInitialBadge(label: String) {
 }
 
 @Composable
-private fun QuickAppsSection(apps: List<AppNode>, alpha: Float) {
-    Column(alpha = alpha) {
+private fun QuickAppsSection(
+    apps: List<AppNode>,
+    alpha: Float
+) {
+    Column(
+        modifier = Modifier.alpha(alpha)
+    ) {
         Text(
             text = "QUICK APPS",
             style = TextStyle(
-                fontFamily = FontFamily.Default,
-                fontWeight = FontWeight(600),
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 10.sp,
                 letterSpacing = 3.sp,
-                color = VoidColor.TextDisabled
+                color = JarvisDisabled
             )
         )
-        
+
         Spacer(modifier = Modifier.height(10.dp))
-        
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.height(220.dp)
-        ) {
-            items(apps.ifEmpty { emptyList() }) { app ->
-                AppTile(app = app)
+
+        if (apps.isEmpty()) {
+            Text(
+                text = "Your frequently used apps will appear here.",
+                style = TextStyle(
+                    fontSize = 13.sp,
+                    color = JarvisDisabled
+                )
+            )
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.height(220.dp)
+            ) {
+                items(apps) { app ->
+                    AppTile(app = app)
+                }
             }
         }
     }
@@ -536,11 +639,11 @@ private fun QuickAppsSection(apps: List<AppNode>, alpha: Float) {
 private fun AppTile(app: AppNode) {
     Surface(
         modifier = Modifier
-            .aspectRatio(1f)
+            .fillMaxWidth()
             .height(100.dp),
         shape = RoundedCornerShape(20.dp),
-        color = VoidColor.Void900,
-        border = androidx.compose.foundation.BorderStroke(1.dp, VoidColor.BorderSubtle)
+        color = JarvisSurfaceDark,
+        border = BorderStroke(1.dp, JarvisBorder)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -548,17 +651,17 @@ private fun AppTile(app: AppNode) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AppInitialBadge(label = app.label)
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = app.label,
                 style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(500),
+                    fontWeight = FontWeight.Medium,
                     fontSize = 12.sp,
-                    color = VoidColor.TextSecondary
-                )
+                    color = JarvisSecondary
+                ),
+                maxLines = 1
             )
         }
     }
@@ -567,19 +670,21 @@ private fun AppTile(app: AppNode) {
 @Composable
 private fun BottomNavBar(
     onSettingsClick: () -> Unit,
+    onHomeClick: () -> Unit,
+    onTasksClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = VoidColor.Void900
+        color = JarvisSurfaceDark
     ) {
         Column {
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier.fillMaxWidth(),
                 thickness = 1.dp,
-                color = VoidColor.BorderSubtle
+                color = JarvisBorder
             )
-            
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -587,53 +692,65 @@ private fun BottomNavBar(
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                val items = listOf("Home", "Tasks", "Settings")
-                
-                items.forEachIndexed { index, item ->
-                    val isSelected = item == "Home" || item == "Tasks"
-                    val isSettings = item == "Settings"
-                    
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable {
-                            if (isSettings) onSettingsClick()
-                        }
-                    ) {
-                        if (isSelected) {
-                            Surface(
-                                shape = RoundedCornerShape(24.dp),
-                                color = VoidColor.Violet.copy(alpha = 0.08f)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = if (item == "Home") Icons.Filled.Task else Icons.Filled.Task,
-                                        contentDescription = item,
-                                        tint = VoidColor.Violet,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            Icon(
-                                imageVector = Icons.Filled.Settings,
-                                contentDescription = item,
-                                tint = VoidColor.TextDisabled,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-                }
+                NavigationItem(
+                    label = "Home",
+                    selected = true,
+                    onClick = onHomeClick
+                )
+
+                NavigationItem(
+                    label = "Tasks",
+                    selected = false,
+                    onClick = onTasksClick
+                )
+
+                NavigationItem(
+                    label = "Settings",
+                    selected = false,
+                    onClick = onSettingsClick
+                )
             }
         }
     }
 }
 
+@Composable
+private fun NavigationItem(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Icon(
+            imageVector = when (label) {
+                "Settings" -> Icons.Filled.Settings
+                else -> Icons.Filled.Task
+            },
+            contentDescription = label,
+            tint = if (selected) JarvisViolet else JarvisDisabled,
+            modifier = Modifier.size(22.dp)
+        )
+
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            color = if (selected) JarvisViolet else JarvisDisabled
+        )
+    }
+}
+
 private fun formatRelativeTime(timestamp: Long): String {
-    val diff = System.currentTimeMillis() - timestamp
+    val diff = (System.currentTimeMillis() - timestamp)
+        .coerceAtLeast(0L)
+
     val minutes = diff / 60000
+
     return when {
         minutes < 1 -> "now"
         minutes < 60 -> "${minutes}m"
