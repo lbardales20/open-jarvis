@@ -1,6 +1,7 @@
+
 package com.openjarvis.ui.dashboard
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -16,7 +17,6 @@ import com.openjarvis.graphify.GraphifyRepository
 import com.openjarvis.graphify.nodes.AppNode
 import com.openjarvis.graphify.nodes.ContactNode
 import com.openjarvis.graphify.nodes.ProviderNode
-import com.openjarvis.ui.theme.VoidColor
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -29,18 +29,25 @@ fun MemoryInsightCard(
     var topContact by remember { mutableStateOf<ContactNode?>(null) }
     var topProvider by remember { mutableStateOf<ProviderNode?>(null) }
 
-    LaunchedEffect(Unit) {
-        patternCount = graphifyRepo.getActivePatternCountFlow().first()
-        topApp = graphifyRepo.getTopAppsFlow(1).first().firstOrNull()
-        topContact = graphifyRepo.getTopContactFlow().first().firstOrNull()
-        topProvider = graphifyRepo.getTopProviderFlow().first().firstOrNull()
+    LaunchedEffect(graphifyRepo) {
+        try {
+            patternCount = graphifyRepo.getActivePatternCountFlow().first()
+            topApp = graphifyRepo.getTopAppsFlow(1).first().firstOrNull()
+            topContact = graphifyRepo.getTopContactFlow().first().firstOrNull()
+            topProvider = graphifyRepo.getTopProviderFlow().first().firstOrNull()
+        } catch (e: Exception) {
+            // La tarjeta conserva los valores predeterminados si falla la lectura.
+        }
     }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = VoidColor.Void800,
-        border = androidx.compose.foundation.BorderStroke(1.dp, VoidColor.BorderSubtle)
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -49,10 +56,10 @@ fun MemoryInsightCard(
                 text = "MEMORY INSIGHTS",
                 style = TextStyle(
                     fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(600),
+                    fontWeight = FontWeight.SemiBold,
                     fontSize = 10.sp,
                     letterSpacing = 3.sp,
-                    color = VoidColor.TextDisabled
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
 
@@ -67,16 +74,19 @@ fun MemoryInsightCard(
                     value = patternCount.toString(),
                     modifier = Modifier.weight(1f)
                 )
+
                 InsightItem(
                     label = "Top App",
                     value = topApp?.label ?: "-",
                     modifier = Modifier.weight(1f)
                 )
+
                 InsightItem(
                     label = "Contact",
                     value = topContact?.name ?: "-",
                     modifier = Modifier.weight(1f)
                 )
+
                 InsightItem(
                     label = "Provider",
                     value = topProvider?.providerName ?: "-",
@@ -101,19 +111,21 @@ private fun InsightItem(
             text = value.take(8),
             style = TextStyle(
                 fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight(600),
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 13.sp,
-                color = VoidColor.TextPrimary
+                color = MaterialTheme.colorScheme.onSurface
             )
         )
+
         Spacer(modifier = Modifier.height(2.dp))
+
         Text(
             text = label,
             style = TextStyle(
                 fontFamily = FontFamily.Default,
-                fontWeight = FontWeight(400),
+                fontWeight = FontWeight.Normal,
                 fontSize = 9.sp,
-                color = VoidColor.TextDisabled
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
     }
