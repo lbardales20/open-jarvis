@@ -13,8 +13,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.Divider
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
@@ -93,29 +94,17 @@ fun FloatingOverlayWidget(
         targetState = isExpanded,
         transitionSpec = {
             if (targetState) {
-                (expandHorizontally(
-                    animationSpec = spring(
-                        stiffness = Spring.StiffnessMedium,
-                        dampingRatio = 0.8f
-                    )
-                ) + expandVertically(
-                    animationSpec = spring(
-                        stiffness = 260f,
-                        dampingRatio = 0.8f
-                    )
-                ) + fadeIn(animationSpec = tween(150, delayMillis = 240)))
+                fadeIn(
+                    animationSpec = tween(250)
+                ) with fadeOut(
+                    animationSpec = tween(100)
+                )
             } else {
-                (shrinkHorizontally(
-                    animationSpec = spring(
-                        stiffness = Spring.StiffnessMedium,
-                        dampingRatio = 0.8f
-                    )
-                ) + shrinkVertically(
-                    animationSpec = spring(
-                        stiffness = Spring.StiffnessMedium,
-                        dampingRatio = 0.8f
-                    )
-                ) + fadeOut(animationSpec = tween(100)))
+                fadeIn(
+                    animationSpec = tween(100)
+                ) with fadeOut(
+                    animationSpec = tween(150)
+                )
             }
         },
         label = "overlay_expand"
@@ -603,7 +592,7 @@ private fun InputRowWithVoice(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowUp,
+                    imageVector = Icons.Filled.KeyboardArrowUp,
                     contentDescription = "Send",
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
@@ -615,7 +604,7 @@ private fun InputRowWithVoice(
 
 @Composable
 private fun DividerLine() {
-    HorizontalDivider(
+    Divider(
         modifier = Modifier.fillMaxWidth(),
         thickness = 1.dp,
         color = OverlaySurface
