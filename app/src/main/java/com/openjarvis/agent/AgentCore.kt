@@ -88,6 +88,37 @@ RULES:
 - If a task is impossible to do safely, return: [{"action":"error","message":"reason"}]
 """.trimIndent()
 
+    fun answerQuestion(question: String) {
+        scope.launch {
+            taskMutex.withLock {
+                _state.value = AgentState.Running("answering question...")
+                val languageInstruction = if (question.any { it in "áéíóúñ¿¡" } ||
+                    question.contains("capital", ignoreCase = true) ||
+                    question.contains("qué", ignoreCase = true) ||
+                    question.contains("cual", ignoreCase = true) ||
+                    question.contains("cuál", ignoreCase = true)
+                ) "Responde en español." else "Answer in English."
+                val prompt = """
+                    You are Jarvis, a helpful voice assistant.
+                    Answer the user's question directly and naturally.
+                    Do not return JSON. Do not create an action plan.
+                    Keep the answer concise and speakable aloud.
+                    $languageInstruction
+                """.trimIndent()
+                universalAdapter.complete(prompt, question).fold(
+                    onSuccess = { answer ->
+                        _state.value = AgentState.Done("CHAT:" + answer.trim())
+                    },
+                    onFailure = { error ->
+                        _state.value = AgentState.Error(
+                            error.message ?: "No pude responder. Revisa tu conexión y la clave API."
+                        )
+                    }
+                )
+            }
+        }
+    }
+
     fun executeTask(cleanCommand: String) {
         workingMemory = TaskWorkingMemory()
 
