@@ -70,15 +70,15 @@ class TaskRouter(private val context: Context) {
         val caps = mutableListOf<Capability>()
         
         when {
-            command.contains("search") -> caps.add(Capability.SEARCH)
+            command.contains("search") || command.contains("busca") || command.contains("buscar") -> caps.add(Capability.SEARCH)
             command.contains("ask ai") || command.contains("ask chat") || command.contains("reason") -> caps.add(Capability.AI_REASONING)
             command.contains("message") || command.contains("send") || command.contains("text to") -> caps.add(Capability.MESSAGING)
             command.contains("read") || command.contains("file") -> caps.add(Capability.FILE_READ)
             command.contains("write") || command.contains("save") || command.contains("note") -> caps.add(Capability.FILE_WRITE)
             command.contains("navigate") || command.contains("direction") || command.contains("directions to") -> caps.add(Capability.NAVIGATION)
             command.contains("pay") || command.contains("payment") || command.contains("buy") -> caps.add(Capability.PAYMENT)
-            command.contains("music") || command.contains("play") -> caps.add(Capability.MEDIA_PLAY)
-            command.contains("browse") || command.contains("web") || command.contains("internet") -> caps.add(Capability.WEB_BROWSE)
+            command.contains("music") || command.contains("play") || command.contains("música") || command.contains("musica") || command.contains("reproduce") -> caps.add(Capability.MEDIA_PLAY)
+            command.contains("browse") || command.contains("web") || command.contains("internet") || command.contains("navega") -> caps.add(Capability.WEB_BROWSE)
             command.contains("photo") || command.contains("capture") || command.contains("camera") -> caps.add(Capability.IMAGE_CAPTURE)
             command.contains("email") || command.contains("mail") -> caps.add(Capability.EMAIL)
             command.contains("calendar") || command.contains("schedule") -> caps.add(Capability.CALENDAR)
@@ -94,8 +94,8 @@ class TaskRouter(private val context: Context) {
         return when {
             command.contains("message") || command.contains("text to") || command.contains("whatsapp") -> "COMMUNICATION"
             command.contains("social") || command.contains("post") || command.contains("facebook") -> "SOCIAL"
-            command.contains("search") || command.contains("browse") -> "BROWSER"
-            command.contains("music") || command.contains("spotify") -> "ENTERTAINMENT"
+            command.contains("search") || command.contains("busca") || command.contains("buscar") || command.contains("browse") -> "BROWSER"
+            command.contains("music") || command.contains("música") || command.contains("musica") || command.contains("spotify") || command.contains("reproduce") -> "ENTERTAINMENT"
             command.contains("maps") || command.contains("navigate") -> "UTILITIES"
             command.contains("drive") || command.contains("docs") || command.contains("document") -> "PRODUCTIVITY"
             command.contains("shop") || command.contains("buy") -> "SHOPPING"
