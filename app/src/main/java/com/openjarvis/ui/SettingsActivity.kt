@@ -54,6 +54,8 @@ class SettingsActivity : ComponentActivity() {
                     },
                     initialVoiceEnabled = voiceManager.isVoiceEnabled(),
                     initialSpeakResults = voiceManager.isSpeakResultsEnabled(),
+                    initialLanguage = voiceManager.getLanguage(),
+                    onLanguageChange = { language -> voiceManager.setLanguage(language) },
                     onVoiceEnabledChange = { enabled ->
                         voiceManager.setVoiceEnabled(enabled)
                     },
