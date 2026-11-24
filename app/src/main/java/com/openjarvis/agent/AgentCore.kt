@@ -309,6 +309,7 @@ RULES:
                         if (packageName != null) {
                             JarvisAccessibilityService.instance
                                 ?.openAppByPackage(packageName)
+                            kotlinx.coroutines.delay(1800)
 
                             graphifyRepo.logAppOpened(
                                 packageName,
@@ -329,11 +330,19 @@ RULES:
                     }
                 }
 
-                Action.TYPE -> {
+                Action.TYPE, Action.CLEAR_TYPE -> {
                     action.value?.let { value ->
                         JarvisAccessibilityService.instance
                             ?.typeText(value)
                     }
+                }
+
+                Action.WAIT_FOR -> {
+                    kotlinx.coroutines.delay(action.timeoutMs.coerceIn(250L, 10000L))
+                }
+
+                Action.READ_SCREEN -> {
+                    getScreenReader()?.extractAllText()
                 }
 
                 Action.PRESS_BACK -> {
