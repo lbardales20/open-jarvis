@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.openjarvis.accessibility.JarvisAccessibilityService
+import com.openjarvis.agent.AgentCore
 import com.openjarvis.graphify.GraphifyRepository
 import com.openjarvis.ui.dashboard.DashboardScreen
 import com.openjarvis.ui.tasks.TasksScreen
@@ -42,6 +43,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var graphifyRepo: GraphifyRepository
     private lateinit var voiceManager: VoiceManager
+    private lateinit var agentCore: AgentCore
 
     private var permissionRefresh by mutableStateOf(0)
     private var showTasks by mutableStateOf(false)
@@ -63,7 +65,10 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         graphifyRepo = GraphifyRepository(this)
-        voiceManager = VoiceManager(applicationContext)
+        agentCore = AgentCore(applicationContext)
+        voiceManager = VoiceManager(applicationContext) { command ->
+            agentCore.executeTask(command)
+        }
 
         setContent {
             MaterialTheme {
