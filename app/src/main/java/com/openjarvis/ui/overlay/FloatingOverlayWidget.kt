@@ -53,6 +53,7 @@ private val OverlaySurfaceDark = Color(0xFF181820)
 private val OverlayText = Color(0xFFF2F0FA)
 private val OverlayMuted = Color(0xFF92909F)
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun FloatingOverlayWidget(
     agentState: AgentState,
