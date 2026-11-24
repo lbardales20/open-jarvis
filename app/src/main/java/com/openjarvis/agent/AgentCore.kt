@@ -302,27 +302,32 @@ RULES:
             when (action.action) {
                 Action.OPEN_APP -> {
                     val label = action.label
+                    val packageName = action.packageName
+                        ?: label?.let { findPackageByLabel(it) }
 
-                    if (label != null) {
-                        val packageName = findPackageByLabel(label)
-
-                        if (packageName != null) {
-                            JarvisAccessibilityService.instance
-                                ?.openAppByPackage(packageName)
-                            kotlinx.coroutines.delay(1800)
-
-                            graphifyRepo.logAppOpened(
-                                packageName,
-                                label
+                    if (packageName != null) {
+                        val accessibility = JarvisAccessibilityService.instance
+                        if (accessibility == null) {
+                            _state.value = AgentState.Error(
+                                "Activa el permiso de Accesibilidad de Jarvis"
                             )
-                        } else {
-                            _state.value =
-                                AgentState.Error("App not found: $label")
                             return
                         }
+
+                        accessibility.openAppByPackage(packageName)
+                        kotlinx.coroutines.delay(1800)
+
+                        graphifyRepo.logAppOpened(
+                            packageName,
+                            label ?: packageName
+                        )
+                    } else {
+                        _state.value = AgentState.Error(
+                            "No encontré la aplicación: ${label ?: "desconocida"}"
+                        )
+                        return
                     }
                 }
-
                 Action.TAP -> {
                     action.text?.let { text ->
                         JarvisAccessibilityService.instance
