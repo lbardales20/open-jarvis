@@ -169,6 +169,17 @@ class VoiceManager(context: Context) {
         }
     }
 
+    fun cancelListening() {
+        try {
+            sttEngine.cancel()
+            _state.value = VoiceState.Idle
+        } catch (e: Exception) {
+            _state.value = VoiceState.Error(
+                e.message ?: "No se pudo cancelar la grabación"
+            )
+        }
+    }
+
     fun startListeningWithVAD() {
         if (!isVoiceEnabled()) {
             _state.value = VoiceState.Error(
