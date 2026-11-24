@@ -67,7 +67,7 @@ private val JarvisBorder = Color(0xFF303047)
 @Composable
 fun DashboardScreen(
     onStartVoice: () -> Unit,
-    onStartOverlay: () -> Unit,
+    onOpenTasks: () -> Unit,
     onOpenSettings: () -> Unit,
     graphifyRepo: GraphifyRepository,
     voiceManager: VoiceManager,
@@ -157,7 +157,7 @@ fun DashboardScreen(
         BottomNavBar(
             onSettingsClick = onOpenSettings,
             onHomeClick = { },
-            onTasksClick = onStartOverlay,
+            onTasksClick = onOpenTasks,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
@@ -185,7 +185,7 @@ private fun VoiceControlCard(voiceManager: VoiceManager, onStartVoice: () -> Uni
         is VoiceManager.VoiceState.Transcribing -> "Procesando tu voz..."
         is VoiceManager.VoiceState.Result -> state.text
         is VoiceManager.VoiceState.Error -> state.message
-        else -> if (enabled) "Toca el micrófono para hablar" else "Activa Voice Assistant en Settings"
+        else -> if (enabled) "Toca el micrófono para hablar" else "Activa el asistente de voz en Ajustes"
     }
 
     val statusColor = when (voiceState) {
@@ -208,7 +208,7 @@ private fun VoiceControlCard(voiceManager: VoiceManager, onStartVoice: () -> Uni
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "VOICE COMMAND",
+                text = "COMANDO DE VOZ",
                 color = JarvisDisabled,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -317,7 +317,7 @@ private fun HeroSection(isSystemActive: Boolean) {
             border = BorderStroke(1.dp, JarvisViolet.copy(alpha = 0.4f))
         ) {
             Text(
-                text = "AI AGENT v0.1",
+                text = "AGENTE IA v0.1",
                 style = TextStyle(
                     fontFamily = FontFamily.Default,
                     fontWeight = FontWeight.Medium,
@@ -363,7 +363,7 @@ private fun HeroSection(isSystemActive: Boolean) {
         )
 
         Text(
-            text = "Your device. Your commands.",
+            text = "Tu dispositivo. Tus órdenes.",
             style = TextStyle(
                 fontSize = 13.sp,
                 color = JarvisDisabled
@@ -425,7 +425,7 @@ private fun StatusBadge(isActive: Boolean) {
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = if (isActive) "System Active" else "Tap to Activate",
+                text = if (isActive) "Sistema activo" else "Toca para activar",
                 style = TextStyle(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
@@ -459,19 +459,19 @@ private fun StatsRow(
     ) {
         StatCard(
             count = animatedCount,
-            label = "Tasks Done",
+            label = "Tareas realizadas",
             modifier = Modifier.weight(1f)
         )
 
         StatCard(
             count = apps.size,
-            label = "Apps Used",
+            label = "Aplicaciones usadas",
             modifier = Modifier.weight(1f)
         )
 
         StatCard(
             count = 0,
-            label = "Patterns",
+            label = "Patrones",
             modifier = Modifier.weight(1f)
         )
     }
@@ -520,7 +520,7 @@ private fun RecentTasksSection(
 ) {
     Column(modifier = Modifier.alpha(alpha)) {
         Text(
-            text = "RECENT TASKS",
+            text = "TAREAS RECIENTES",
             style = TextStyle(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 10.sp,
@@ -533,7 +533,7 @@ private fun RecentTasksSection(
 
         if (tasks.isEmpty()) {
             Text(
-                text = "No tasks yet. Try opening an app!",
+                text = "Aún no hay tareas. ¡Prueba abrir una aplicación!",
                 style = TextStyle(
                     fontSize = 13.sp,
                     color = JarvisDisabled
@@ -622,7 +622,7 @@ private fun TaskCard(task: TaskNode) {
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
-                        text = "System App",
+                        text = "Aplicación del sistema",
                         style = TextStyle(
                             fontSize = 11.sp,
                             color = JarvisDisabled
@@ -636,7 +636,7 @@ private fun TaskCard(task: TaskNode) {
                         color = outcomeColor.copy(alpha = 0.12f)
                     ) {
                         Text(
-                            text = if (isSuccess) "done" else "failed",
+                            text = if (isSuccess) "completada" else "fallida",
                             style = TextStyle(
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 10.sp,
@@ -694,7 +694,7 @@ private fun QuickAppsSection(
 ) {
     Column(modifier = Modifier.alpha(alpha)) {
         Text(
-            text = "QUICK APPS",
+            text = "APLICACIONES RÁPIDAS",
             style = TextStyle(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 10.sp,
@@ -707,7 +707,7 @@ private fun QuickAppsSection(
 
         if (apps.isEmpty()) {
             Text(
-                text = "Your frequently used apps will appear here.",
+                text = "Aquí aparecerán tus aplicaciones frecuentes.",
                 style = TextStyle(
                     fontSize = 13.sp,
                     color = JarvisDisabled
@@ -786,19 +786,19 @@ private fun BottomNavBar(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 NavigationItem(
-                    label = "Home",
+                    label = "Inicio",
                     selected = true,
                     onClick = onHomeClick
                 )
 
                 NavigationItem(
-                    label = "Tasks",
+                    label = "Tareas",
                     selected = false,
                     onClick = onTasksClick
                 )
 
                 NavigationItem(
-                    label = "Settings",
+                    label = "Ajustes",
                     selected = false,
                     onClick = onSettingsClick
                 )
@@ -822,7 +822,7 @@ private fun NavigationItem(
     ) {
         Icon(
             imageVector = when (label) {
-                "Settings" -> Icons.Filled.Settings
+                "Ajustes" -> Icons.Filled.Settings
                 else -> Icons.Filled.Task
             },
             contentDescription = label,
