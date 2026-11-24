@@ -35,6 +35,7 @@ import androidx.core.view.WindowCompat
 import com.openjarvis.accessibility.JarvisAccessibilityService
 import com.openjarvis.graphify.GraphifyRepository
 import com.openjarvis.ui.dashboard.DashboardScreen
+import com.openjarvis.ui.tasks.TasksScreen
 import com.openjarvis.voice.VoiceManager
 
 class MainActivity : ComponentActivity() {
@@ -43,6 +44,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var voiceManager: VoiceManager
 
     private var permissionRefresh by mutableStateOf(0)
+    private var showTasks by mutableStateOf(false)
 
     private val requestAudioPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -81,6 +83,12 @@ class MainActivity : ComponentActivity() {
                             startOverlaySettings()
                         }
                     )
+                } else if (showTasks) {
+                    TasksScreen(
+                        graphifyRepo = graphifyRepo,
+                        onNavigateBack = { showTasks = false },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
                     DashboardScreen(
                         onStartVoice = {
@@ -90,8 +98,8 @@ class MainActivity : ComponentActivity() {
                                 requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
                             }
                         },
-                        onStartOverlay = {
-                            startOverlayService()
+                        onOpenTasks = {
+                            showTasks = true
                         },
                         onOpenSettings = {
                             openSettings()
@@ -149,7 +157,7 @@ class MainActivity : ComponentActivity() {
 
         Toast.makeText(
             this,
-            "Jarvis is active",
+            "Jarvis está activo",
             Toast.LENGTH_SHORT
         ).show()
     }
@@ -176,7 +184,7 @@ fun PermissionScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Permission Required",
+            text = "Permisos necesarios",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -184,7 +192,7 @@ fun PermissionScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Open Jarvis needs accessibility and overlay permissions to control your device.",
+            text = "Jarvis necesita permisos de accesibilidad y ventana flotante para controlar tu dispositivo.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -197,7 +205,7 @@ fun PermissionScreen(
                 onClick = onEnableAccessibility,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Enable Accessibility Service")
+                Text("Activar servicio de accesibilidad")
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -208,7 +216,7 @@ fun PermissionScreen(
                 onClick = onEnableOverlay,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Enable Overlay Permission")
+                Text("Permitir ventana flotante")
             }
         }
     }
