@@ -51,6 +51,10 @@ private val SettingsBorder = Color(0xFF343442)
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onSaveProvider: (String, String, String, String) -> Unit,
+    initialVoiceEnabled: Boolean = false,
+    initialSpeakResults: Boolean = true,
+    onVoiceEnabledChange: (Boolean) -> Unit = {},
+    onSpeakResultsChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedProvider by remember { mutableStateOf("Groq") }
@@ -61,8 +65,8 @@ fun SettingsScreen(
     var showProvidersDropdown by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
     var savedVisible by remember { mutableStateOf(false) }
-    var voiceEnabled by remember { mutableStateOf(false) }
-    var speakResults by remember { mutableStateOf(true) }
+    var voiceEnabled by remember(initialVoiceEnabled) { mutableStateOf(initialVoiceEnabled) }
+    var speakResults by remember(initialSpeakResults) { mutableStateOf(initialSpeakResults) }
     var sttMode by remember { mutableStateOf("Push to Talk") }
 
     LaunchedEffect(selectedProvider) {
@@ -167,6 +171,7 @@ fun SettingsScreen(
                     enabled = voiceEnabled,
                     onToggle = {
                         voiceEnabled = !voiceEnabled
+                        onVoiceEnabledChange(voiceEnabled)
                     }
                 )
 
@@ -179,6 +184,7 @@ fun SettingsScreen(
                         enabled = speakResults,
                         onToggle = {
                             speakResults = !speakResults
+                            onSpeakResultsChange(speakResults)
                         }
                     )
 
