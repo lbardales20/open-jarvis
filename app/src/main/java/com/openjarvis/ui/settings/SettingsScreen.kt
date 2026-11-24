@@ -70,8 +70,8 @@ fun SettingsScreen(
     var sttMode by remember { mutableStateOf("Pulsar para hablar") }
 
     LaunchedEffect(selectedProvider) {
-        showBaseUrlField = selectedProvider == "Personalizado" ||
-            selectedProvider == "Ollama (local)"
+        showBaseUrlField = selectedProvider == "Custom" ||
+            selectedProvider == "Ollama (Local)"
     }
 
     val scrollState = rememberScrollState()
