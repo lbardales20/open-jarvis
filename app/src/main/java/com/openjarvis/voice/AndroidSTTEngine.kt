@@ -211,6 +211,21 @@ class AndroidSTTEngine(private val context: Context) : STTEngine {
         return result
     }
 
+    override fun cancel() {
+        _isListening.value = false
+        pendingResult = null
+        currentCallback = null
+        currentErrorCallback = null
+
+        mainHandler.post {
+            try {
+                recognizer?.cancel()
+            } catch (_: Exception) {
+            }
+            releaseAudioRecord()
+        }
+    }
+
     override fun isListening(): Boolean = _isListening.value
 
     override fun release() {
