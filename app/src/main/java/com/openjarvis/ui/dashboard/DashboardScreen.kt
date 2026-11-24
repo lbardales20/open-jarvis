@@ -66,6 +66,7 @@ private val JarvisBorder = Color(0xFF303047)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    onStartVoice: () -> Unit,
     onStartOverlay: () -> Unit,
     onOpenSettings: () -> Unit,
     graphifyRepo: GraphifyRepository,
@@ -126,7 +127,7 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(22.dp))
 
-            VoiceControlCard(voiceManager = voiceManager)
+            VoiceControlCard(voiceManager = voiceManager, onStartVoice = onStartVoice)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -163,7 +164,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun VoiceControlCard(voiceManager: VoiceManager) {
+private fun VoiceControlCard(voiceManager: VoiceManager, onStartVoice: () -> Unit) {
     val voiceState by voiceManager.state.collectAsState()
     val isRecording = voiceState is VoiceManager.VoiceState.Recording ||
         voiceState is VoiceManager.VoiceState.Transcribing
@@ -234,7 +235,7 @@ private fun VoiceControlCard(voiceManager: VoiceManager) {
                         if (isRecording) {
                             voiceManager.stopListening()
                         } else if (enabled) {
-                            voiceManager.startListening()
+                            onStartVoice()
                         } else {
                             voiceManager.resetState()
                         }
