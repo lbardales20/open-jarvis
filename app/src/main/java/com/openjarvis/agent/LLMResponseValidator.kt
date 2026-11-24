@@ -10,7 +10,7 @@ object LLMResponseValidator {
         "open_app", "tap", "tap_coords", "long_press", "type",
         "clear_type", "swipe", "scroll", "press_back", "press_home",
         "press_recents", "wait_for", "screenshot", "read_screen",
-        "ai_prompt", "mcp_call", "reply_notification",
+        "ai_prompt", "extract_text", "mcp_call", "reply_notification",
         "read_clipboard", "write_clipboard", "highlight_element", "error"
     )
     
@@ -31,9 +31,20 @@ object LLMResponseValidator {
         
         val parsed = try {
             if (clean.startsWith("{")) {
-                JSONArray("[$clean]")
+                val objectResponse = JSONObject(clean)
+                when {
+                    objectResponse.has("actions") -> objectResponse.getJSONArray("actions")
+                    objectResponse.has("action") -> JSONArray("[$clean]")
+                    else -> JSONArray()
+                }
             } else {
-                JSONArray(clean)
+                val startArray = clean.indexOf('[')
+                val endArray = clean.lastIndexOf(']')
+                if (startArray >= 0 && endArray > startArray) {
+                    JSONArray(clean.substring(startArray, endArray + 1))
+                } else {
+                    JSONArray(clean)
+                }
             }
         } catch (e: JSONException) {
             errors.add("Invalid JSON: ${e.message}")
