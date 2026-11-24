@@ -1,61 +1,69 @@
+
 package com.openjarvis.ui.onboarding
 
 import android.content.Context
-import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.*
-import androidx.compose.foundation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.lifecycleScope
-import com.openjarvis.ui.theme.VoidColor
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import com.openjarvis.ui.theme.OpenJarvisTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class OnboardingActivity : ComponentActivity() {
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         if (isOnboardingComplete()) {
             finish()
             return
         }
-        
-        setContent { OnboardingScreen(onComplete = { finish() }) }
+
+        setContent {
+            OpenJarvisTheme {
+                OnboardingScreen(
+                    onComplete = { finish() }
+                )
+            }
+        }
     }
-    
+
     private fun isOnboardingComplete(): Boolean {
-        val prefs = getSharedPreferences("jarvis_prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences(
+            "jarvis_prefs",
+            Context.MODE_PRIVATE
+        )
         return prefs.getBoolean("onboarding_complete", false)
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(onComplete: () -> Unit) {
-    var currentScreen by remember { mutableIntStateOf(0) }
+    var currentScreen by remember { mutableStateOf(0) }
     val context = LocalContext.current
-    
+
     Scaffold(
-        containerColor = VoidColor.Void950
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -67,15 +75,18 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 0 -> WelcomeScreen(
                     onGetStarted = { currentScreen = 1 }
                 )
+
                 1 -> PermissionsScreen(
                     onBack = { currentScreen = 0 },
                     onContinue = { currentScreen = 2 }
                 )
+
                 2 -> ProviderScreen(
                     onBack = { currentScreen = 1 },
                     onContinue = { currentScreen = 3 },
                     onSkip = { currentScreen = 3 }
                 )
+
                 3 -> TryItScreen(
                     onBack = { currentScreen = 2 },
                     onSuccess = {
@@ -83,31 +94,38 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         onComplete()
                     }
                 )
-                4 -> ReadyScreen(onStart = {
-                    completeOnboarding(context)
-                    onComplete()
-                })
+
+                4 -> ReadyScreen(
+                    onStart = {
+                        completeOnboarding(context)
+                        onComplete()
+                    }
+                )
             }
-            
+
             if (currentScreen in 1..3) {
                 Spacer(modifier = Modifier.weight(1f))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    if (currentScreen > 0 && currentScreen < 4) {
-                        TextButton(onClick = { currentScreen-- }) {
-                            Text("Back", color = VoidColor.TextDisabled)
-                        }
-                    } else {
-                        Spacer(modifier = Modifier.width(1.dp))
+                    TextButton(
+                        onClick = { currentScreen-- }
+                    ) {
+                        Text(
+                            "Back",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    
-                    if (currentScreen < 4) {
-                        TextButton(onClick = { currentScreen++ }) {
-                            Text("Skip", color = VoidColor.TextDisabled)
-                        }
+
+                    TextButton(
+                        onClick = { currentScreen++ }
+                    ) {
+                        Text(
+                            "Skip",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -126,77 +144,89 @@ private fun WelcomeScreen(onGetStarted: () -> Unit) {
             text = "OPEN\nJARVIS",
             fontSize = 48.sp,
             fontWeight = FontWeight.Bold,
-            color = VoidColor.Violet,
+            color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center,
             lineHeight = 52.sp
         )
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Text(
             text = "Your AI. Your Phone.\nYour Control.",
             fontSize = 20.sp,
-            color = VoidColor.TextPrimary,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
             text = "Give Jarvis a prompt.\nIt handles everything.",
             fontSize = 14.sp,
-            color = VoidColor.TextDisabled,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-        
+
         Spacer(modifier = Modifier.height(64.dp))
-        
+
         Button(
             onClick = onGetStarted,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = VoidColor.Violet
-            ),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
                 text = "Get Started",
-                modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)
+                modifier = Modifier.padding(
+                    horizontal = 32.dp,
+                    vertical = 8.dp
+                )
             )
         }
     }
 }
 
 @Composable
-private fun PermissionsScreen(onBack: () -> Unit, onContinue: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
+private fun PermissionsScreen(
+    onBack: () -> Unit,
+    onContinue: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+
         Text(
             text = "Permissions",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = VoidColor.TextPrimary
+            color = MaterialTheme.colorScheme.onSurface
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "Jarvis needs a few permissions to control your device",
             fontSize = 14.sp,
-            color = VoidColor.TextDisabled
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
-        PermissionRow("Accessibility Service", "Required to tap, type, and control apps")
-        PermissionRow("Overlay Permission", "Required to show the floating control pill")
-        PermissionRow("Notification Access", "Required to read and reply to messages")
-        
+
+        PermissionRow(
+            "Accessibility Service",
+            "Required to tap, type, and control apps"
+        )
+
+        PermissionRow(
+            "Overlay Permission",
+            "Required to show the floating control pill"
+        )
+
+        PermissionRow(
+            "Notification Access",
+            "Required to read and reply to messages"
+        )
+
         Spacer(modifier = Modifier.weight(1f))
-        
+
         Button(
             onClick = onContinue,
-            colors = ButtonDefaults.buttonColors(containerColor = VoidColor.Violet),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Continue")
@@ -205,54 +235,73 @@ private fun PermissionsScreen(onBack: () -> Unit, onContinue: () -> Unit) {
 }
 
 @Composable
-private fun PermissionRow(title: String, subtitle: String) {
+private fun PermissionRow(
+    title: String,
+    subtitle: String
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = VoidColor.Void800)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.CheckCircle,
+                imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = VoidColor.Violet,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
+
             Spacer(modifier = Modifier.width(16.dp))
+
             Column {
-                Text(title, fontWeight = FontWeight.Medium, color = VoidColor.TextPrimary)
-                Text(subtitle, fontSize = 12.sp, color = VoidColor.TextDisabled)
+                Text(
+                    title,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Text(
+                    subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ProviderScreen(onBack: () -> Unit, onContinue: () -> Unit, onSkip: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
+private fun ProviderScreen(
+    onBack: () -> Unit,
+    onContinue: () -> Unit,
+    onSkip: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+
         Text(
             text = "Choose Your AI",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = VoidColor.TextPrimary
+            color = MaterialTheme.colorScheme.onSurface
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "Connect an AI brain",
             fontSize = 14.sp,
-            color = VoidColor.TextDisabled
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
+
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -260,9 +309,9 @@ private fun ProviderScreen(onBack: () -> Unit, onContinue: () -> Unit, onSkip: (
             ProviderCard("Groq", "Free · Fast", Modifier.weight(1f))
             ProviderCard("Gemini", "Free tier", Modifier.weight(1f))
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -270,12 +319,11 @@ private fun ProviderScreen(onBack: () -> Unit, onContinue: () -> Unit, onSkip: (
             ProviderCard("OpenRouter", "Free models", Modifier.weight(1f))
             ProviderCard("Local", "Offline", Modifier.weight(1f))
         }
-        
+
         Spacer(modifier = Modifier.weight(1f))
-        
+
         Button(
             onClick = onContinue,
-            colors = ButtonDefaults.buttonColors(containerColor = VoidColor.Violet),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Continue")
@@ -284,93 +332,122 @@ private fun ProviderScreen(onBack: () -> Unit, onContinue: () -> Unit, onSkip: (
 }
 
 @Composable
-private fun ProviderCard(name: String, subtitle: String, modifier: Modifier = Modifier) {
+private fun ProviderCard(
+    name: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = VoidColor.Void800),
-        border = BorderStroke(1.dp, VoidColor.BorderSubtle)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(name, fontWeight = FontWeight.Bold, color = VoidColor.TextPrimary)
-            Text(subtitle, fontSize = 12.sp, color = VoidColor.TextDisabled)
+            Text(
+                name,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Text(
+                subtitle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
-private fun TryItScreen(onBack: () -> Unit, onSuccess: () -> Unit) {
-    var command by remember { mutableStateOf("Open Chrome and search for weather") }
+private fun TryItScreen(
+    onBack: () -> Unit,
+    onSuccess: () -> Unit
+) {
+    var command by remember {
+        mutableStateOf("Open Chrome and search for weather")
+    }
+
     var isRunning by remember { mutableStateOf(false) }
-    
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    val coroutineScope = rememberCoroutineScope()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+
         Text(
             text = "Try It",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = VoidColor.TextPrimary
+            color = MaterialTheme.colorScheme.onSurface
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "Let's try your first prompt",
             fontSize = 14.sp,
-            color = VoidColor.TextDisabled
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
+
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         OutlinedTextField(
             value = command,
             onValueChange = { command = it },
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = VoidColor.Violet,
-                unfocusedBorderColor = VoidColor.BorderSubtle
-            ),
-            placeholder = { Text("Type your command...") }
+            placeholder = {
+                Text("Type your command...")
+            }
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(VoidColor.Void900, RoundedCornerShape(12.dp)),
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             if (isRunning) {
-                CircularProgressIndicator(color = VoidColor.Violet)
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
+                )
             } else {
                 Text(
                     "Press Run to execute",
-                    color = VoidColor.TextDisabled
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Button(
             onClick = {
-                isRunning = true
-                lifecycleScope.launch {
-                    delay(2000)
-                    isRunning = false
-                    onSuccess()
+                if (command.isNotBlank()) {
+                    isRunning = true
+
+                    coroutineScope.launch {
+                        delay(2000)
+                        isRunning = false
+                        onSuccess()
+                    }
                 }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = VoidColor.Violet),
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isRunning
+            enabled = !isRunning && command.isNotBlank()
         ) {
-            Text(if (isRunning) "Running..." else "Run This")
+            Text(
+                if (isRunning) "Running..." else "Run This"
+            )
         }
     }
 }
@@ -383,46 +460,51 @@ private fun ReadyScreen(onStart: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            Icons.Default.CheckCircle,
+            imageVector = Icons.Default.CheckCircle,
             contentDescription = null,
-            tint = VoidColor.Violet,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(64.dp)
         )
-        
+
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         Text(
             text = "You're Ready",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = VoidColor.TextPrimary
+            color = MaterialTheme.colorScheme.onSurface
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "Jarvis is ready to help you",
             fontSize = 14.sp,
-            color = VoidColor.TextDisabled
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Button(
             onClick = onStart,
-            colors = ButtonDefaults.buttonColors(containerColor = VoidColor.Violet),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
                 text = "Start Using Jarvis",
-                modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)
+                modifier = Modifier.padding(
+                    horizontal = 32.dp,
+                    vertical = 8.dp
+                )
             )
         }
     }
 }
 
 private fun completeOnboarding(context: Context) {
-    context.getSharedPreferences("jarvis_prefs", Context.MODE_PRIVATE)
+    context.getSharedPreferences(
+        "jarvis_prefs",
+        Context.MODE_PRIVATE
+    )
         .edit()
         .putBoolean("onboarding_complete", true)
         .apply()
