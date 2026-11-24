@@ -211,34 +211,7 @@ RULES:
                                 return@fold
                             }
 
-                            val actions =
-                                ActionJsonParser.parse(rawJson)
-                                    ?: run {
-                                        val retry =
-                                            universalAdapter.complete(
-                                                fullSystem,
-                                                "$safeCommand\n\nRespond with JSON array ONLY. No other text."
-                                            )
-
-                                        retry.getOrNull()?.let {
-                                            ActionJsonParser.parse(it)
-                                        }
-                                    }
-
-                            if (actions == null) {
-                                _state.value = AgentState.Error(
-                                    "Could not parse AI response"
-                                )
-
-                                graphifyRepo.logTask(
-                                    command = safeCommand,
-                                    result = "failed: parse error",
-                                    provider = "",
-                                    latencyMs = 0L
-                                )
-
-                                return@fold
-                            }
+                            val actions = validation.actions
 
                             _state.value = AgentState.Running(
                                 "executing ${actions.size} actions..."
