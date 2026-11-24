@@ -29,17 +29,23 @@ class AgentCore(private val context: Context) {
     private val graphifyRepo = GraphifyRepository(context)
     private val analysisEngine = AnalysisEngine(context)
     private val universalAdapter = UniversalAdapter(context)
-    private val screenReader = ScreenReader(context)
     private val visionModule = VisionModule.getInstance(context)
     private val taskRouter = TaskRouter(context)
     private val appAnalyzer = AppAnalyzer(context)
     private val aiAppInteractor = AIAppInteractor(context)
+
     private var workingMemory = TaskWorkingMemory()
+
     private val scope = CoroutineScope(Dispatchers.IO)
     private val taskMutex = Mutex()
 
     private val _state = MutableStateFlow<AgentState>(AgentState.Idle)
     val state: StateFlow<AgentState> = _state
+
+    private fun getScreenReader(): ScreenReader? {
+        val service = JarvisAccessibilityService.instance ?: return null
+        return ScreenReader(service)
+    }
 
     private val systemPrompt = """
 You are Open Jarvis — an Android device control AI agent.
@@ -87,6 +93,8 @@ RULES:
 
         scope.launch {
             taskMutex.withLock {
+                var safeCommand = cleanCommand
+
                 try {
                     val sanitized = PromptSanitizer.sanitize(cleanCommand)
 
@@ -103,9 +111,13 @@ RULES:
                         is PromptSanitizer.SanitizeResult.Clean -> {}
                     }
 
-                    val safeCommand = when (sanitized) {
-                        is PromptSanitizer.SanitizeResult.Suspicious -> sanitized.sanitized
-                        is PromptSanitizer.SanitizeResult.Clean -> sanitized.text
+                    safeCommand = when (sanitized) {
+                        is PromptSanitizer.SanitizeResult.Suspicious ->
+                            sanitized.sanitized
+
+                        is PromptSanitizer.SanitizeResult.Clean ->
+                            sanitized.text
+
                         else -> cleanCommand
                     }
 
@@ -116,7 +128,7 @@ RULES:
                     _state.value = AgentState.Running("reading screen...")
 
                     val screenText = withContext(Dispatchers.IO) {
-                        screenReader.extractAllText()
+                        getScreenReader()?.extractAllText().orEmpty()
                     }
 
                     _state.value = AgentState.Running("getting context...")
@@ -157,12 +169,14 @@ RULES:
                                 _state.value = AgentState.Error(
                                     "Invalid response: ${validation.errors.first()}"
                                 )
+
                                 graphifyRepo.logTask(
-                                    safeCommand,
-                                    "failed: validation error",
-                                    "",
-                                    0
+                                    command = safeCommand,
+                                    result = "failed: validation error",
+                                    provider = "",
+                                    latencyMs = 0L
                                 )
+
                                 return@fold
                             }
 
@@ -174,6 +188,7 @@ RULES:
                                                 fullSystem,
                                                 "$safeCommand\n\nRespond with JSON array ONLY. No other text."
                                             )
+
                                         retry.getOrNull()?.let {
                                             ActionJsonParser.parse(it)
                                         }
@@ -183,12 +198,14 @@ RULES:
                                 _state.value = AgentState.Error(
                                     "Could not parse AI response"
                                 )
+
                                 graphifyRepo.logTask(
-                                    safeCommand,
-                                    "failed: parse error",
-                                    "",
-                                    0
+                                    command = safeCommand,
+                                    result = "failed: parse error",
+                                    provider = "",
+                                    latencyMs = 0L
                                 )
+
                                 return@fold
                             }
 
@@ -199,7 +216,7 @@ RULES:
                             executeActions(actions)
 
                             graphifyRepo.logTask(
-                                cleanCommand = safeCommand,
+                                command = safeCommand,
                                 result = "success",
                                 provider = universalAdapter.getProviderName(),
                                 latencyMs = latency
@@ -232,10 +249,10 @@ RULES:
                             _state.value = AgentState.Error(msg)
 
                             graphifyRepo.logTask(
-                                safeCommand,
-                                "failed: $msg",
-                                "",
-                                0
+                                command = safeCommand,
+                                result = "failed: $msg",
+                                provider = "",
+                                latencyMs = 0L
                             )
                         }
                     )
@@ -246,10 +263,10 @@ RULES:
                     )
 
                     graphifyRepo.logTask(
-                        safeCommand = cleanCommand,
+                        command = safeCommand,
                         result = "failed: ${e.message}",
                         provider = "",
-                        latencyMs = 0
+                        latencyMs = 0L
                     )
                 }
             }
@@ -358,7 +375,7 @@ RULES:
 
                 Action.EXTRACT_TEXT -> {
                     val outputKey = action.outputKey ?: "page_text"
-                    val text = screenReader.extractAllText()
+                    val text = getScreenReader()?.extractAllText().orEmpty()
                     workingMemory.set(outputKey, text)
                 }
 
