@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -26,13 +27,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.openjarvis.llm.UniversalAdapter
 import kotlinx.coroutines.delay
 
 private val SettingsBackground = Color(0xFF09090F)
@@ -92,7 +91,6 @@ fun SettingsScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 SectionLabel("AI PROVIDER")
-
                 Spacer(modifier = Modifier.height(12.dp))
 
                 ProviderSelectorCard(
@@ -161,7 +159,6 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 SectionLabel("VOICE")
-
                 Spacer(modifier = Modifier.height(12.dp))
 
                 SettingsToggleRow(
@@ -214,7 +211,6 @@ fun SettingsScreen(
                                     color = SettingsText,
                                     fontSize = 14.sp
                                 )
-
                                 Text(
                                     text = if (sttMode == "Push to Talk") {
                                         "Hold mic to record, release to send"
@@ -263,7 +259,6 @@ fun SettingsScreen(
                                     color = SettingsText,
                                     fontSize = 14.sp
                                 )
-
                                 Text(
                                     text = "Google Speech · Online",
                                     color = SettingsMuted,
@@ -283,7 +278,6 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 SectionLabel("PERMISSIONS")
-
                 Spacer(modifier = Modifier.height(12.dp))
 
                 PermissionRow(
@@ -301,7 +295,6 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 SectionLabel("ABOUT")
-
                 Spacer(modifier = Modifier.height(12.dp))
 
                 AboutSection()
@@ -401,7 +394,6 @@ private fun ProviderSelectorCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ProviderDot(selectedProvider)
-
             Spacer(modifier = Modifier.width(12.dp))
 
             Text(
@@ -594,9 +586,7 @@ fun FloatingLabelTextField(
 }
 
 @Composable
-private fun SaveProviderButton(
-    onClick: () -> Unit
-) {
+private fun SaveProviderButton(onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -650,7 +640,6 @@ private fun SettingsToggleRow(
                     fontSize = 14.sp,
                     color = SettingsText
                 )
-
                 Text(
                     text = subtitle,
                     fontSize = 11.sp,
@@ -712,7 +701,6 @@ private fun PermissionRow(
                     fontSize = 14.sp,
                     color = SettingsText
                 )
-
                 Text(
                     text = subtitle,
                     fontSize = 11.sp,
