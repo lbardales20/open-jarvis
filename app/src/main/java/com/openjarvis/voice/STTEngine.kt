@@ -3,6 +3,7 @@ package com.openjarvis.voice
 interface STTEngine {
     fun startListening(onResult: (String?) -> Unit, onError: (String) -> Unit)
     fun stop(): String? // Returns transcribed text or null
+    fun cancel() // Cancels recognition and discards captured speech
     fun isListening(): Boolean
     fun release()
 }
