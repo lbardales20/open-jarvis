@@ -1,6 +1,10 @@
 
 package com.openjarvis.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
@@ -40,6 +44,16 @@ class MainActivity : ComponentActivity() {
 
     private var permissionRefresh by mutableStateOf(0)
 
+    private val requestAudioPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            if (::voiceManager.isInitialized) voiceManager.startListening()
+        } else {
+            Toast.makeText(this, "Jarvis necesita permiso de micrófono para escucharte", Toast.LENGTH_LONG).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -69,6 +83,13 @@ class MainActivity : ComponentActivity() {
                     )
                 } else {
                     DashboardScreen(
+                        onStartVoice = {
+                            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                voiceManager.startListening()
+                            } else {
+                                requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
                         onStartOverlay = {
                             startOverlayService()
                         },
