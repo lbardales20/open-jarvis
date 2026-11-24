@@ -1,137 +1,250 @@
+
 package com.openjarvis.vision
 
-import android.app.Activity
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.PixelFormat
+import android.hardware.display.DisplayManager
+import android.hardware.display.VirtualDisplay
+import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Handler
 import android.os.HandlerThread
-import android.util.DisplayMetrics
 import android.view.WindowManager
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
-import java.nio.ByteBuffer
-import kotlin.coroutines.resume
 
 class ScreenshotCapture(private val context: Context) {
 
     private var mediaProjection: MediaProjection? = null
     private var imageReader: ImageReader? = null
+    private var virtualDisplay: VirtualDisplay? = null
     private var handlerThread: HandlerThread? = null
     private var handler: Handler? = null
+
+    private var latestBitmap: Bitmap? = null
+
+    @Volatile
     private var isCapturing = false
 
-    fun startCapture(): Boolean {
-        val projectionManager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        val intents = mutableListOf<Intent>()
-        
-        for (activity in getActivities()) {
-            val intent = projectionManager.createScreenCaptureIntent()
-            intents.add(intent)
+    private val bitmapLock = Any()
+
+    private var screenWidth = 0
+    private var screenHeight = 0
+    private var screenDensity = 0
+
+    private val projectionCallback =
+        object : MediaProjection.Callback() {
+
+            override fun onStop() {
+                release()
+            }
         }
-        
-        return intents.isNotEmpty()
+
+    fun startCapture(): Boolean {
+        return isCapturing && mediaProjection != null
     }
 
     fun initialize(projection: MediaProjection): Bitmap? {
         release()
 
-        val windowManager = context.getSystemService(WindowManager::class.java)
-        val display = windowManager.defaultDisplay
-        val metrics = DisplayMetrics()
-        display.getRealMetrics(metrics)
-
-        val width = metrics.widthPixels
-        val height = metrics.heightPixels
-        val density = metrics.densityDpi
-
-        handlerThread = HandlerThread("ScreenshotThread").apply { start() }
-        handler = Handler(handlerThread!!.looper)
-
-        imageReader = ImageReader.newInstance(
-            width,
-            height,
-            PixelFormat.RGBA_8888,
-            2
-        )
-
-        mediaProjection = projection
-        isCapturing = true
-
-        return null
-    }
-
-    fun capture(): Bitmap? {
-        if (!isCapturing || imageReader == null) return null
-
-        val surface = imageReader?.surface ?: return null
-        
         try {
-            mediaProjection?.createVirtualDisplay(
-                "Screenshot",
-                surface.width,
-                surface.height,
-                surface.allocation,
-                surface.allocation,
-                surface,
+            val windowManager =
+                context.getSystemService(Context.WINDOW_SERVICE)
+                    as WindowManager
+
+            val metrics = android.util.DisplayMetrics()
+            windowManager.defaultDisplay.getRealMetrics(metrics)
+
+            screenWidth = metrics.widthPixels
+            screenHeight = metrics.heightPixels
+            screenDensity = metrics.densityDpi
+
+            if (screenWidth <= 0 || screenHeight <= 0 || screenDensity <= 0) {
+                return null
+            }
+
+            handlerThread = HandlerThread("ScreenshotThread").apply {
+                start()
+            }
+
+            handler = Handler(handlerThread!!.looper)
+
+            imageReader = ImageReader.newInstance(
+                screenWidth,
+                screenHeight,
+                PixelFormat.RGBA_8888,
+                2
+            )
+
+            mediaProjection = projection
+
+            projection.registerCallback(
+                projectionCallback,
+                handler
+            )
+
+            imageReader?.setOnImageAvailableListener(
+                { reader ->
+                    processImage(reader)
+                },
+                handler
+            )
+
+            virtualDisplay = projection.createVirtualDisplay(
+                "JarvisScreenshot",
+                screenWidth,
+                screenHeight,
+                screenDensity,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                imageReader!!.surface,
                 null,
                 handler
             )
 
-            val image = imageReader?.acquireLatestImage()
-            return image?.let { img ->
-                val planes = img.planes
-                val buffer: ByteBuffer = planes[0].buffer
-                val pixelStride = planes[0].pixelStride
-                val rowStride = planes[0].rowStride
-                val rowPadding = rowStride - pixelStride * img.width
+            isCapturing = virtualDisplay != null
 
-                val bitmap = Bitmap.createBitmap(
-                    img.width + rowPadding / pixelStride,
-                    img.height,
-                    Bitmap.Config.ARGB_8888
-                )
-                bitmap.copyPixelsFromBuffer(buffer)
-                img.close()
-
-                if (rowPadding > 0) {
-                    Bitmap.createBitmap(bitmap, 0, 0, img.width, img.height)
-                } else {
-                    bitmap
-                }
+            if (!isCapturing) {
+                release()
+                return null
             }
+
+            return null
+
         } catch (e: Exception) {
             e.printStackTrace()
+            release()
             return null
+        }
+    }
+
+    private fun processImage(reader: ImageReader) {
+        var image: Image? = null
+
+        try {
+            image = reader.acquireLatestImage() ?: return
+
+            val plane = image.planes[0]
+            val buffer = plane.buffer
+
+            val pixelStride = plane.pixelStride
+            val rowStride = plane.rowStride
+
+            val rowPadding =
+                rowStride - pixelStride * image.width
+
+            val bitmapWidth =
+                image.width + rowPadding / pixelStride
+
+            val fullBitmap = Bitmap.createBitmap(
+                bitmapWidth,
+                image.height,
+                Bitmap.Config.ARGB_8888
+            )
+
+            buffer.rewind()
+            fullBitmap.copyPixelsFromBuffer(buffer)
+
+            val croppedBitmap = Bitmap.createBitmap(
+                fullBitmap,
+                0,
+                0,
+                image.width,
+                image.height
+            )
+
+            if (croppedBitmap !== fullBitmap) {
+                fullBitmap.recycle()
+            }
+
+            synchronized(bitmapLock) {
+                latestBitmap?.recycle()
+                latestBitmap = croppedBitmap
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            image?.close()
+        }
+    }
+
+    fun capture(): Bitmap? {
+        if (!isCapturing) return null
+
+        return synchronized(bitmapLock) {
+            latestBitmap?.copy(
+                Bitmap.Config.ARGB_8888,
+                false
+            )
         }
     }
 
     fun release() {
         isCapturing = false
-        mediaProjection?.stop()
+
+        try {
+            imageReader?.setOnImageAvailableListener(null, null)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        try {
+            virtualDisplay?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        virtualDisplay = null
+
+        try {
+            mediaProjection?.unregisterCallback(projectionCallback)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        try {
+            mediaProjection?.stop()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         mediaProjection = null
-        imageReader?.close()
+
+        try {
+            imageReader?.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         imageReader = null
+
+        synchronized(bitmapLock) {
+            latestBitmap?.recycle()
+            latestBitmap = null
+        }
+
         handlerThread?.quitSafely()
         handlerThread = null
         handler = null
-    }
 
-    private fun getActivities(): List<Activity> {
-        return listOf()
+        screenWidth = 0
+        screenHeight = 0
+        screenDensity = 0
     }
 
     companion object {
+
         @Volatile
         private var instance: ScreenshotCapture? = null
 
         fun getInstance(context: Context): ScreenshotCapture {
             return instance ?: synchronized(this) {
-                instance ?: ScreenshotCapture(context.applicationContext).also { instance = it }
+                instance ?: ScreenshotCapture(
+                    context.applicationContext
+                ).also {
+                    instance = it
+                }
             }
         }
     }
