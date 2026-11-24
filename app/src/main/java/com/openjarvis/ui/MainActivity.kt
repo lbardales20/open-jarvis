@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -29,7 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.openjarvis.accessibility.JarvisAccessibilityService
 import com.openjarvis.graphify.GraphifyRepository
-import com.openjarvis.ui.theme.OpenJarvisTheme
+import com.openjarvis.ui.dashboard.DashboardScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -46,7 +47,7 @@ class MainActivity : ComponentActivity() {
         graphifyRepo = GraphifyRepository(this)
 
         setContent {
-            OpenJarvisTheme {
+            MaterialTheme {
                 val refresh = permissionRefresh
 
                 val accessibilityEnabled = isAccessibilityServiceEnabled()
@@ -64,7 +65,7 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 } else {
-                    com.openjarvis.ui.dashboard.DashboardScreen(
+                    DashboardScreen(
                         onStartOverlay = {
                             startOverlayService()
                         },
@@ -135,7 +136,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun PermissionScreen(
     accessibilityEnabled: Boolean,
     overlayEnabled: Boolean,
@@ -184,14 +185,6 @@ fun PermissionScreen(
             ) {
                 Text("Enable Overlay Permission")
             }
-        }
-
-        if (accessibilityEnabled && overlayEnabled) {
-            Text(
-                text = "Jarvis is active",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }
