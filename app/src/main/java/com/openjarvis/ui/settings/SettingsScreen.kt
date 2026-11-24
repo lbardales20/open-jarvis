@@ -603,7 +603,7 @@ private fun SaveProviderButton(onClick: () -> Unit) {
         )
     ) {
         Text(
-            text = "Save Provider",
+            text = "Guardar proveedor",
             fontSize = 14.sp
         )
     }
@@ -740,7 +740,7 @@ private fun AboutSection() {
             Divider(color = SettingsBorder)
 
             Text(
-                text = "Built on Android · From Termux with love",
+                text = "Desarrollado para Android · Hecho con dedicación",
                 fontSize = 12.sp,
                 color = SettingsMuted,
                 modifier = Modifier
@@ -805,7 +805,7 @@ private fun SavedToast(
             )
         ) {
             Text(
-                text = "✓ saved",
+                text = "✓ Guardado",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = SettingsGreen,
