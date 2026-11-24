@@ -22,9 +22,8 @@
         tools:targetApi="34">
 
         <activity
-            android:name=".ui.MainActivity"
-            android:exported="true"
-            android:theme="@style/Theme.OpenJarvis">
+            android:name="com.openjarvis.ui.MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -32,13 +31,12 @@
         </activity>
 
         <activity
-            android:name=".ui.SettingsActivity"
+            android:name="com.openjarvis.ui.SettingsActivity"
             android:exported="false"
-            android:parentActivityName=".ui.MainActivity"
-            android:theme="@style/Theme.OpenJarvis" />
+            android:parentActivityName="com.openjarvis.ui.MainActivity" />
 
         <service
-            android:name=".accessibility.JarvisAccessibilityService"
+            android:name="com.openjarvis.accessibility.JarvisAccessibilityService"
             android:exported="false"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
@@ -50,7 +48,7 @@
         </service>
 
         <service
-            android:name=".ui.OverlayService"
+            android:name="com.openjarvis.ui.OverlayService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
@@ -59,7 +57,7 @@
         </service>
 
         <service
-            android:name=".local.DownloadService"
+            android:name="com.openjarvis.local.DownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
