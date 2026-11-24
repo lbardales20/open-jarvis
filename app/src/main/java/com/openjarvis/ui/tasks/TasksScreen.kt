@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -64,7 +65,7 @@ fun TasksScreen(
             }
             Text("Historial de tareas", color = MainText, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         }
-        HorizontalDivider(color = Color(0xFF303047))
+        Divider(color = Color(0xFF303047), thickness = 1.dp)
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)
         ) {
