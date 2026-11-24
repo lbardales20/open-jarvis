@@ -24,6 +24,8 @@ import androidx.compose.material.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Task
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.openjarvis.graphify.GraphifyRepository
 import com.openjarvis.graphify.nodes.AppNode
 import com.openjarvis.graphify.nodes.TaskNode
+import com.openjarvis.voice.VoiceManager
 import kotlinx.coroutines.delay
 
 private val JarvisBackground = Color(0xFF080812)
@@ -66,6 +69,7 @@ fun DashboardScreen(
     onStartOverlay: () -> Unit,
     onOpenSettings: () -> Unit,
     graphifyRepo: GraphifyRepository,
+    voiceManager: VoiceManager,
     modifier: Modifier = Modifier
 ) {
     var recentTasks by remember {
@@ -120,6 +124,10 @@ fun DashboardScreen(
 
             HeroSection(isSystemActive = isSystemActive)
 
+            Spacer(modifier = Modifier.height(22.dp))
+
+            VoiceControlCard(voiceManager = voiceManager)
+
             Spacer(modifier = Modifier.height(24.dp))
 
             StatsRow(
@@ -151,6 +159,111 @@ fun DashboardScreen(
             onTasksClick = onStartOverlay,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+    }
+}
+
+@Composable
+private fun VoiceControlCard(voiceManager: VoiceManager) {
+    val voiceState by voiceManager.state.collectAsState()
+    val isRecording = voiceState is VoiceManager.VoiceState.Recording ||
+        voiceState is VoiceManager.VoiceState.Transcribing
+    val enabled = voiceManager.isVoiceEnabled()
+    val pulse = rememberInfiniteTransition(label = "voice_pulse")
+    val pulseScale by pulse.animateFloat(
+        initialValue = 1f,
+        targetValue = if (isRecording) 1.10f else 1.03f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "voice_scale"
+    )
+
+    val statusText = when (val state = voiceState) {
+        is VoiceManager.VoiceState.Recording -> "Escuchando... habla ahora"
+        is VoiceManager.VoiceState.Transcribing -> "Procesando tu voz..."
+        is VoiceManager.VoiceState.Result -> state.text
+        is VoiceManager.VoiceState.Error -> state.message
+        else -> if (enabled) "Toca el micrófono para hablar" else "Activa Voice Assistant en Settings"
+    }
+
+    val statusColor = when (voiceState) {
+        is VoiceManager.VoiceState.Error -> JarvisRed
+        is VoiceManager.VoiceState.Recording,
+        is VoiceManager.VoiceState.Transcribing -> JarvisCyan
+        else -> JarvisSecondary
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        color = JarvisSurface.copy(alpha = 0.96f),
+        border = BorderStroke(1.dp, JarvisViolet.copy(alpha = 0.35f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "VOICE COMMAND",
+                color = JarvisDisabled,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 3.sp
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Box(
+                modifier = Modifier
+                    .size(94.dp)
+                    .scale(if (isRecording) pulseScale else 1f)
+                    .clip(RoundedCornerShape(50))
+                    .background(
+                        Brush.linearGradient(
+                            colors = if (isRecording) listOf(JarvisCyan, JarvisViolet)
+                            else listOf(JarvisViolet, Color(0xFF5540A8))
+                        )
+                    )
+                    .border(
+                        2.dp,
+                        JarvisCyan.copy(alpha = if (isRecording) 0.9f else 0.35f),
+                        RoundedCornerShape(50)
+                    )
+                    .clickable {
+                        if (isRecording) {
+                            voiceManager.stopListening()
+                        } else if (enabled) {
+                            voiceManager.startListening()
+                        } else {
+                            voiceManager.resetState()
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isRecording) Icons.Default.MicOff else Icons.Default.Mic,
+                    contentDescription = if (isRecording) "Stop listening" else "Start voice command",
+                    tint = Color.White,
+                    modifier = Modifier.size(38.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = if (isRecording) "JARVIS TE ESCUCHA" else "HABLAR CON JARVIS",
+                color = JarvisText,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = statusText,
+                color = statusColor,
+                fontSize = 12.sp,
+                maxLines = 2
+            )
+        }
     }
 }
 
