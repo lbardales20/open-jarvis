@@ -31,10 +31,12 @@ import androidx.core.view.WindowCompat
 import com.openjarvis.accessibility.JarvisAccessibilityService
 import com.openjarvis.graphify.GraphifyRepository
 import com.openjarvis.ui.dashboard.DashboardScreen
+import com.openjarvis.voice.VoiceManager
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var graphifyRepo: GraphifyRepository
+    private lateinit var voiceManager: VoiceManager
 
     private var permissionRefresh by mutableStateOf(0)
 
@@ -45,6 +47,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         graphifyRepo = GraphifyRepository(this)
+        voiceManager = VoiceManager(applicationContext)
 
         setContent {
             MaterialTheme {
@@ -73,6 +76,7 @@ class MainActivity : ComponentActivity() {
                             openSettings()
                         },
                         graphifyRepo = graphifyRepo,
+                        voiceManager = voiceManager,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
