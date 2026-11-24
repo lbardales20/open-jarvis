@@ -77,7 +77,13 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             agentCore.state.collect { state ->
                 when (state) {
-                    is AgentState.Done -> voiceManager.speak("Listo. He terminado la tarea.")
+                    is AgentState.Done -> {
+                        if (state.result.startsWith("CHAT:")) {
+                            voiceManager.speak(state.result.removePrefix("CHAT:").trim())
+                        } else {
+                            voiceManager.speak("Listo. He terminado la tarea.")
+                        }
+                    }
                     is AgentState.Error -> voiceManager.speak("No pude completar la orden. " + state.message)
                     else -> Unit
                 }
@@ -182,24 +188,64 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleVoiceCommand(command: String) {
-        val youtubePattern = Regex(
-            """(?i)(?:jarvis[ ,]*)?(?:abre|abrir|open)\s+(?:la\s+)?(?:app\s+)?youtube\s+(?:y\s+)?(?:busca|buscar|search)\s+(.+)"""
-        )
-        val query = youtubePattern.find(command.trim())?.groupValues?.getOrNull(1)?.trim()?.trimEnd('.', ',', '!', '?')
+        val clean = command.trim().removePrefix("Jarvis").trim().trimEnd('.', ',', '!', '?')
 
+        val youtubePattern = Regex(
+            """(?i)(?:abre|abrir|open)\s+(?:la\s+)?(?:app\s+)?youtube\s+(?:y\s+)?(?:busca|buscar|search)\s+(.+)"""
+        )
+        val query = youtubePattern.find(clean)?.groupValues?.getOrNull(1)?.trim()
         if (!query.isNullOrBlank()) {
-            val searchUri = Uri.parse(
-                "https://www.youtube.com/results?search_query=" + Uri.encode(query)
-            )
             try {
-                startActivity(Intent(Intent.ACTION_VIEW, searchUri))
+                startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query))
+                    )
+                )
                 return
-            } catch (_: Exception) {
-                // Fall through to the AI agent if YouTube cannot be opened.
-            }
+            } catch (_: Exception) { }
         }
 
-        agentCore.executeTask(command)
+        val openPattern = Regex(
+            """(?i)^(?:por favor\s+)?(?:abre|abrir|open|inicia|iniciar|lanza|launch)\s+(?:la\s+)?(?:app\s+|aplicación\s+)?(.+)$"""
+        )
+        val appName = openPattern.find(clean)?.groupValues?.getOrNull(1)
+            ?.trim()?.trimEnd('.', ',', '!', '?')
+        if (!appName.isNullOrBlank() && openInstalledApp(appName)) return
+
+        val looksLikeQuestion = clean.contains("?") ||
+            clean.startsWith("qué", true) || clean.startsWith("que", true) ||
+            clean.startsWith("cuál", true) || clean.startsWith("cual", true) ||
+            clean.startsWith("quién", true) || clean.startsWith("quien", true) ||
+            clean.startsWith("cómo", true) || clean.startsWith("como", true) ||
+            clean.startsWith("dónde", true) || clean.startsWith("donde", true) ||
+            clean.contains("capital de", true) ||
+            clean.startsWith("why", true) || clean.startsWith("what", true) ||
+            clean.startsWith("who", true) || clean.startsWith("how", true)
+        if (looksLikeQuestion) {
+            agentCore.answerQuestion(clean)
+        } else {
+            agentCore.executeTask(clean)
+        }
+    }
+
+    private fun openInstalledApp(requestedName: String): Boolean {
+        val pm = packageManager
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val apps = pm.queryIntentActivities(launcherIntent, 0)
+        val requested = requestedName.lowercase().replace(" ", "").replace("á", "a")
+        val match = apps.firstOrNull { info ->
+            val label = info.loadLabel(pm).toString().lowercase()
+                .replace(" ", "").replace("á", "a")
+            label == requested || label.contains(requested) || requested.contains(label)
+        } ?: return false
+        val launchIntent = pm.getLaunchIntentForPackage(match.activityInfo.packageName) ?: return false
+        return try {
+            startActivity(launchIntent)
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun openSettings() {
