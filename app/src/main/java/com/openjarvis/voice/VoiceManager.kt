@@ -14,7 +14,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class VoiceManager(context: Context) {
+class VoiceManager(
+    context: Context,
+    private val onCommand: ((String) -> Unit)? = null
+) {
 
     companion object {
         private const val PREFS_NAME = "voice_prefs"
@@ -22,6 +25,7 @@ class VoiceManager(context: Context) {
         private const val KEY_STT_MODE = "stt_mode"
         private const val KEY_SPEAK_RESULTS = "speak_results"
         private const val KEY_SPEECH_RATE = "speech_rate"
+        private const val KEY_LANGUAGE = "assistant_language"
     }
 
     private val appContext = context.applicationContext
@@ -99,6 +103,13 @@ class VoiceManager(context: Context) {
             .apply()
     }
 
+    fun getLanguage(): String = prefs.getString(KEY_LANGUAGE, "es-ES") ?: "es-ES"
+
+    fun setLanguage(languageTag: String) {
+        val safe = if (languageTag == "en-US") "en-US" else "es-ES"
+        prefs.edit().putString(KEY_LANGUAGE, safe).apply()
+    }
+
     fun getSpeechRate(): Float =
         prefs.getFloat(KEY_SPEECH_RATE, 1.05f)
 
@@ -128,8 +139,10 @@ class VoiceManager(context: Context) {
                     onResult = { text ->
                         if (!text.isNullOrBlank()) {
                             _state.value = VoiceState.Result(text)
-
-                            if (isSpeakResultsEnabled()) {
+                            if (onCommand != null) {
+                                if (isSpeakResultsEnabled()) ttsEngine.speak("Entendido. Ejecutaré tu orden.")
+                                onCommand.invoke(text)
+                            } else if (isSpeakResultsEnabled()) {
                                 ttsEngine.speak("He escuchado: $text")
                             }
                         } else {
@@ -140,7 +153,8 @@ class VoiceManager(context: Context) {
                     },
                     onError = { error ->
                         _state.value = VoiceState.Error(error)
-                    }
+                    },
+                    languageTag = getLanguage()
                 )
             } catch (e: Exception) {
                 _state.value = VoiceState.Error(
@@ -196,8 +210,10 @@ class VoiceManager(context: Context) {
                     onResult = { text ->
                         if (!text.isNullOrBlank()) {
                             _state.value = VoiceState.Result(text)
-
-                            if (isSpeakResultsEnabled()) {
+                            if (onCommand != null) {
+                                if (isSpeakResultsEnabled()) ttsEngine.speak("Entendido. Ejecutaré tu orden.")
+                                onCommand.invoke(text)
+                            } else if (isSpeakResultsEnabled()) {
                                 ttsEngine.speak("He escuchado: $text")
                             }
                         } else {
