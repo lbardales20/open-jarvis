@@ -67,11 +67,11 @@ fun SettingsScreen(
     var savedVisible by remember { mutableStateOf(false) }
     var voiceEnabled by remember(initialVoiceEnabled) { mutableStateOf(initialVoiceEnabled) }
     var speakResults by remember(initialSpeakResults) { mutableStateOf(initialSpeakResults) }
-    var sttMode by remember { mutableStateOf("Push to Talk") }
+    var sttMode by remember { mutableStateOf("Pulsar para hablar") }
 
     LaunchedEffect(selectedProvider) {
-        showBaseUrlField = selectedProvider == "Custom" ||
-            selectedProvider == "Ollama (Local)"
+        showBaseUrlField = selectedProvider == "Personalizado" ||
+            selectedProvider == "Ollama (local)"
     }
 
     val scrollState = rememberScrollState()
@@ -94,7 +94,7 @@ fun SettingsScreen(
                     .verticalScroll(scrollState)
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
-                SectionLabel("AI PROVIDER")
+                SectionLabel("PROVEEDOR DE IA")
                 Spacer(modifier = Modifier.height(12.dp))
 
                 ProviderSelectorCard(
@@ -114,7 +114,7 @@ fun SettingsScreen(
                 FloatingLabelTextField(
                     value = baseUrl,
                     onValueChange = { baseUrl = it },
-                    label = "Base URL",
+                    label = "URL base",
                     isFocused = false,
                     visible = showBaseUrlField
                 )
@@ -122,7 +122,7 @@ fun SettingsScreen(
                 FloatingLabelTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
-                    label = "API Key",
+                    label = "Clave API",
                     isFocused = false,
                     isPassword = true,
                     showPassword = showPassword,
@@ -134,12 +134,12 @@ fun SettingsScreen(
                 FloatingLabelTextField(
                     value = model,
                     onValueChange = { model = it },
-                    label = "Model",
+                    label = "Modelo",
                     isFocused = false
                 )
 
                 Text(
-                    text = "Works with compatible AI providers",
+                    text = "Compatible con proveedores de inteligencia artificial",
                     style = TextStyle(
                         fontSize = 11.sp,
                         color = SettingsMuted
@@ -162,12 +162,12 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                SectionLabel("VOICE")
+                SectionLabel("VOZ")
                 Spacer(modifier = Modifier.height(12.dp))
 
                 SettingsToggleRow(
-                    title = "Voice Assistant",
-                    subtitle = "Push to Talk · VAD supported",
+                    title = "Asistente de voz",
+                    subtitle = "Pulsar para hablar · detección automática disponible",
                     enabled = voiceEnabled,
                     onToggle = {
                         voiceEnabled = !voiceEnabled
@@ -179,8 +179,8 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     SettingsToggleRow(
-                        title = "Speak Results",
-                        subtitle = "Jarvis reads results aloud",
+                        title = "Leer respuestas en voz alta",
+                        subtitle = "Jarvis leerá los resultados en voz alta",
                         enabled = speakResults,
                         onToggle = {
                             speakResults = !speakResults
@@ -195,10 +195,10 @@ fun SettingsScreen(
                             .fillMaxWidth()
                             .clickable {
                                 sttMode =
-                                    if (sttMode == "Push to Talk") {
-                                        "Auto (VAD)"
+                                    if (sttMode == "Pulsar para hablar") {
+                                        "Automático (VAD)"
                                     } else {
-                                        "Push to Talk"
+                                        "Pulsar para hablar"
                                     }
                             },
                         shape = RoundedCornerShape(16.dp),
@@ -213,15 +213,15 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
-                                    text = "STT Mode",
+                                    text = "Modo de reconocimiento",
                                     color = SettingsText,
                                     fontSize = 14.sp
                                 )
                                 Text(
-                                    text = if (sttMode == "Push to Talk") {
-                                        "Hold mic to record, release to send"
+                                    text = if (sttMode == "Pulsar para hablar") {
+                                        "Mantén pulsado para grabar y suelta para enviar"
                                     } else {
-                                        "Tap to record, auto-sends on silence"
+                                        "Toca para grabar; se envía al detectar silencio"
                                     },
                                     color = SettingsMuted,
                                     fontSize = 11.sp
@@ -261,19 +261,19 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
-                                    text = "Speech Recognition",
+                                    text = "Reconocimiento de voz",
                                     color = SettingsText,
                                     fontSize = 14.sp
                                 )
                                 Text(
-                                    text = "Google Speech · Online",
+                                    text = "Reconocimiento de Google · En línea",
                                     color = SettingsMuted,
                                     fontSize = 11.sp
                                 )
                             }
 
                             Text(
-                                text = "Ready",
+                                text = "Listo",
                                 color = SettingsGreen,
                                 fontSize = 12.sp
                             )
@@ -283,24 +283,24 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                SectionLabel("PERMISSIONS")
+                SectionLabel("PERMISOS")
                 Spacer(modifier = Modifier.height(12.dp))
 
                 PermissionRow(
-                    title = "Accessibility",
-                    subtitle = "Required — Tap to enable"
+                    title = "Accesibilidad",
+                    subtitle = "Obligatorio — Toca para activar"
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 PermissionRow(
-                    title = "Overlay",
-                    subtitle = "Required — Tap to enable"
+                    title = "Ventana flotante",
+                    subtitle = "Obligatorio — Toca para activar"
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                SectionLabel("ABOUT")
+                SectionLabel("ACERCA DE")
                 Spacer(modifier = Modifier.height(12.dp))
 
                 AboutSection()
@@ -333,13 +333,13 @@ private fun SettingsHeader(onNavigateBack: () -> Unit) {
             IconButton(onClick = onNavigateBack) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowLeft,
-                    contentDescription = "Back",
+                    contentDescription = "Volver",
                     tint = SettingsSecondary
                 )
             }
 
             Text(
-                text = "Settings",
+                text = "Ajustes",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = SettingsText
@@ -374,8 +374,8 @@ private fun ProviderSelectorCard(
         "OpenRouter",
         "Anthropic Claude",
         "OpenAI",
-        "Ollama (Local)",
-        "Custom"
+        "Ollama (local)",
+        "Personalizado"
     )
 
     val borderColor by animateColorAsState(
@@ -452,7 +452,7 @@ private fun ProviderDot(provider: String) {
         "OpenRouter" -> SettingsGreen
         "Anthropic Claude" -> SettingsAmber
         "OpenAI" -> SettingsGreen
-        "Ollama (Local)" -> SettingsCyan
+        "Ollama (local)" -> SettingsCyan
         else -> SettingsViolet
     }
 
