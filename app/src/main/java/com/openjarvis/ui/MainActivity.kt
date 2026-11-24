@@ -170,7 +170,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handleVoiceCommand(command: String) {
         val youtubePattern = Regex(
-            """(?i)(?:jarvis[ ,]*)?(?:abre|abrir|open)\\s+(?:la\\s+)?(?:app\\s+)?youtube\\s+(?:y\\s+)?(?:busca|buscar|search)\\s+(.+)"""
+            """(?i)(?:jarvis[ ,]*)?(?:abre|abrir|open)\s+(?:la\s+)?(?:app\s+)?youtube\s+(?:y\s+)?(?:busca|buscar|search)\s+(.+)"""
         )
         val query = youtubePattern.find(command.trim())?.groupValues?.getOrNull(1)?.trim()
 
