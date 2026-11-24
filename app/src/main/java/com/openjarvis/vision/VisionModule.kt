@@ -1,3 +1,4 @@
+
 package com.openjarvis.vision
 
 import android.content.Context
@@ -9,68 +10,116 @@ import com.google.mlkit.vision.text.TextRecognizer
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 class VisionModule(private val context: Context) {
 
-    private val recognizer: TextRecognizer = TextRecognition.getClient(
-        TextRecognizerOptions.DEFAULT_OPTIONS
-    )
+    private val recognizer: TextRecognizer =
+        TextRecognition.getClient(
+            TextRecognizerOptions.DEFAULT_OPTIONS
+        )
 
-    suspend fun extractText(bitmap: Bitmap): String = suspendCancellableCoroutine { continuation ->
-        val image = InputImage.fromBitmap(bitmap, 0)
-        
-        recognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                val extractedText = visionText.text
-                if (extractedText.isNotBlank()) {
-                    continuation.resume(extractedText)
-                } else {
+    suspend fun extractText(bitmap: Bitmap): String {
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                val image = InputImage.fromBitmap(bitmap, 0)
+
+                recognizer.process(image)
+                    .addOnSuccessListener { visionText ->
+                        if (continuation.isActive) {
+                            continuation.resume(visionText.text)
+                        }
+                    }
+                    .addOnFailureListener { error ->
+                        Log.e(TAG, "OCR failed", error)
+
+                        if (continuation.isActive) {
+                            continuation.resume("")
+                        }
+                    }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Could not process image", e)
+
+                if (continuation.isActive) {
                     continuation.resume("")
                 }
             }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "OCR failed", e)
-                continuation.resume("")
-            }
+        }
     }
 
-    suspend fun extractStructured(bitmap: Bitmap): ScreenOCR = suspendCancellableCoroutine { continuation ->
-        val image = InputImage.fromBitmap(bitmap, 0)
-        
-        recognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                val blocks = visionText.textBlocks.map { block ->
-                    OCRBlock(
-                        text = block.text,
-                        confidence = block.confidence,
-                        boundingBox = block.boundingBox?.let { rect ->
-                            BoundingBox(rect.left, rect.top, rect.right, rect.bottom)
-                        },
-                        lines = block.lines.map { line ->
-                            OCRLine(
-                                text = line.text,
-                                confidence = line.confidence,
-                                boundingBox = line.boundingBox?.let { rect ->
-                                    BoundingBox(rect.left, rect.top, rect.right, rect.bottom)
-                                }
+    suspend fun extractStructured(bitmap: Bitmap): ScreenOCR {
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                val image = InputImage.fromBitmap(bitmap, 0)
+
+                recognizer.process(image)
+                    .addOnSuccessListener { visionText ->
+                        if (continuation.isActive) {
+                            val blocks = visionText.textBlocks.map { block ->
+                                OCRBlock(
+                                    text = block.text,
+                                    confidence = block.confidence ?: 0f,
+                                    boundingBox = block.boundingBox?.let { rect ->
+                                        BoundingBox(
+                                            rect.left,
+                                            rect.top,
+                                            rect.right,
+                                            rect.bottom
+                                        )
+                                    },
+                                    lines = block.lines.map { line ->
+                                        OCRLine(
+                                            text = line.text,
+                                            confidence = line.confidence ?: 0f,
+                                            boundingBox = line.boundingBox?.let { rect ->
+                                                BoundingBox(
+                                                    rect.left,
+                                                    rect.top,
+                                                    rect.right,
+                                                    rect.bottom
+                                                )
+                                            }
+                                        )
+                                    }
+                                )
+                            }
+
+                            continuation.resume(
+                                ScreenOCR(
+                                    fullText = visionText.text,
+                                    blocks = blocks
+                                )
                             )
                         }
+                    }
+                    .addOnFailureListener { error ->
+                        Log.e(TAG, "Structured OCR failed", error)
+
+                        if (continuation.isActive) {
+                            continuation.resume(
+                                ScreenOCR("", emptyList())
+                            )
+                        }
+                    }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Could not process structured image", e)
+
+                if (continuation.isActive) {
+                    continuation.resume(
+                        ScreenOCR("", emptyList())
                     )
                 }
-                continuation.resume(ScreenOCR(
-                    fullText = visionText.text,
-                    blocks = blocks
-                ))
             }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "OCR failed", e)
-                continuation.resume(ScreenOCR("", emptyList()))
-            }
+        }
     }
 
     fun release() {
-        recognizer.close()
+        try {
+            recognizer.close()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error closing recognizer", e)
+        }
     }
 
     data class ScreenOCR(
@@ -99,6 +148,7 @@ class VisionModule(private val context: Context) {
     )
 
     companion object {
+
         private const val TAG = "VisionModule"
 
         @Volatile
@@ -106,7 +156,11 @@ class VisionModule(private val context: Context) {
 
         fun getInstance(context: Context): VisionModule {
             return instance ?: synchronized(this) {
-                instance ?: VisionModule(context.applicationContext).also { instance = it }
+                instance ?: VisionModule(
+                    context.applicationContext
+                ).also {
+                    instance = it
+                }
             }
         }
     }
