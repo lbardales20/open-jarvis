@@ -1,6 +1,6 @@
+
 package com.openjarvis.llm.providers
 
-import com.openjarvis.llm.ConnectionResult
 import com.openjarvis.llm.HttpClient
 import com.openjarvis.llm.LLMProvider
 import kotlinx.coroutines.Dispatchers
@@ -15,72 +15,61 @@ class OpenRouterProvider(
     private val apiKey: String,
     private val model: String = "meta-llama/llama-3-8b-instruct:free"
 ) : LLMProvider {
-    
-    override val name: String = "OpenRouter"
-    override val baseUrl: String = "https://openrouter.ai/api/v1"
-    
+
+    override val name = "OpenRouter"
+    override val baseUrl = "https://openrouter.ai/api/v1"
+
     override suspend fun complete(
         systemPrompt: String,
         userMessage: String
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val requestBody = JSONObject().apply {
+            val body = JSONObject().apply {
                 put("model", model)
                 put("messages", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "system")
-                        put("content", systemPrompt)
-                    })
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", userMessage)
-                    })
+                    put(JSONObject().put("role", "system").put("content", systemPrompt))
+                    put(JSONObject().put("role", "user").put("content", userMessage))
                 })
                 put("max_tokens", 1024)
                 put("temperature", 0.1)
             }.toString()
-            
+
             val request = Request.Builder()
                 .url("$baseUrl/chat/completions")
                 .addHeader("Authorization", "Bearer $apiKey")
                 .addHeader("Content-Type", "application/json")
                 .addHeader("HTTP-Referer", "https://github.com/tokenarc/open-jarvis")
                 .addHeader("X-Title", "Open Jarvis")
-                .post(requestBody.toRequestBody("application/json".toMediaType()))
+                .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
-            
+
             HttpClient.client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: throw Exception("Empty response")
-                val json = JSONObject(body)
-                if (json.has("choices")) {
-                    json.getJSONArray("choices")
-                        .getJSONObject(0)
-                        .getJSONObject("message")
-                        .getString("content")
-                } else if (json.has("error")) {
-                    throw Exception(json.getJSONObject("error").getString("message"))
-                } else {
-                    throw Exception("Unknown response: $body")
+                val text = response.body?.string() ?: throw Exception("Empty response")
+                val json = JSONObject(text)
+                if (!response.isSuccessful) {
+                    throw Exception(json.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}")
                 }
+                json.getJSONArray("choices")
+                    .getJSONObject(0)
+                    .getJSONObject("message")
+                    .getString("content")
             }
         }
     }
-    
+
     override suspend fun testConnection(): Result<Long> = withContext(Dispatchers.IO) {
         runCatching {
-            val startTime = System.currentTimeMillis()
+            val start = System.currentTimeMillis()
             val request = Request.Builder()
                 .url("$baseUrl/models")
                 .addHeader("Authorization", "Bearer $apiKey")
                 .get()
                 .build()
-            
-            HttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw Exception("HTTP ${response.code}")
-                }
+
+            HttpClient.client.newCall(request).execute().use {
+                if (!it.isSuccessful) throw Exception("HTTP ${it.code}")
             }
-            System.currentTimeMillis() - startTime
+            System.currentTimeMillis() - start
         }
     }
 }
@@ -89,76 +78,68 @@ class AnthropicProvider(
     private val apiKey: String,
     private val model: String = "claude-haiku-4-20250514"
 ) : LLMProvider {
-    
-    override val name: String = "Anthropic Claude"
-    override val baseUrl: String = "https://api.anthropic.com/v1"
-    
+
+    override val name = "Anthropic Claude"
+    override val baseUrl = "https://api.anthropic.com/v1"
+
     override suspend fun complete(
         systemPrompt: String,
         userMessage: String
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val requestBody = JSONObject().apply {
+            val body = JSONObject().apply {
                 put("model", model)
                 put("max_tokens", 1024)
                 put("system", systemPrompt)
-                put("messages", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", userMessage)
-                    })
-                })
+                put("messages", JSONArray().put(
+                    JSONObject().put("role", "user").put("content", userMessage)
+                ))
             }.toString()
-            
+
             val request = Request.Builder()
                 .url("$baseUrl/messages")
                 .addHeader("x-api-key", apiKey)
                 .addHeader("anthropic-version", "2023-06-01")
                 .addHeader("Content-Type", "application/json")
-                .post(requestBody.toRequestBody("application/json".toMediaType()))
+                .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
-            
+
             HttpClient.client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: throw Exception("Empty response")
-                val json = JSONObject(body)
-                if (json.has("content")) {
-                    json.getJSONArray("content")
-                        .getJSONObject(0)
-                        .getString("text")
-                } else if (json.has("error")) {
-                    throw Exception(json.getJSONObject("error").getString("message"))
-                } else {
-                    throw Exception("Unknown response: $body")
+                val text = response.body?.string() ?: throw Exception("Empty response")
+                val json = JSONObject(text)
+                if (!response.isSuccessful) {
+                    throw Exception(json.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}")
                 }
+                json.getJSONArray("content")
+                    .getJSONObject(0)
+                    .getString("text")
             }
         }
     }
-    
+
     override suspend fun testConnection(): Result<Long> = withContext(Dispatchers.IO) {
         runCatching {
-            val startTime = System.currentTimeMillis()
-            val requestBody = JSONObject().apply {
+            val start = System.currentTimeMillis()
+            val body = JSONObject().apply {
                 put("model", model)
                 put("max_tokens", 1)
                 put("messages", JSONArray().put(
                     JSONObject().put("role", "user").put("content", "ping")
                 ))
             }.toString()
-            
+
             val request = Request.Builder()
                 .url("$baseUrl/messages")
                 .addHeader("x-api-key", apiKey)
                 .addHeader("anthropic-version", "2023-06-01")
                 .addHeader("Content-Type", "application/json")
-                .post(requestBody.toRequestBody("application/json".toMediaType()))
+                .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
-            
-            HttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw Exception("HTTP ${response.code}")
-                }
+
+            HttpClient.client.newCall(request).execute().use {
+                if (!it.isSuccessful) throw Exception("HTTP ${it.code}")
             }
-            System.currentTimeMillis() - startTime
+            System.currentTimeMillis() - start
         }
     }
 }
@@ -167,216 +148,178 @@ class OpenAIProvider(
     private val apiKey: String,
     private val model: String = "gpt-4o-mini"
 ) : LLMProvider {
-    
-    override val name: String = "OpenAI"
-    override val baseUrl: String = "https://api.openai.com/v1"
-    
+
+    override val name = "OpenAI"
+    override val baseUrl = "https://api.openai.com/v1"
+
     override suspend fun complete(
         systemPrompt: String,
         userMessage: String
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val requestBody = JSONObject().apply {
+            val body = JSONObject().apply {
                 put("model", model)
                 put("messages", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "system")
-                        put("content", systemPrompt)
-                    })
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", userMessage)
-                    })
+                    put(JSONObject().put("role", "system").put("content", systemPrompt))
+                    put(JSONObject().put("role", "user").put("content", userMessage))
                 })
                 put("max_tokens", 1024)
                 put("temperature", 0.1)
             }.toString()
-            
+
             val request = Request.Builder()
                 .url("$baseUrl/chat/completions")
                 .addHeader("Authorization", "Bearer $apiKey")
                 .addHeader("Content-Type", "application/json")
-                .post(requestBody.toRequestBody("application/json".toMediaType()))
+                .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
-            
+
             HttpClient.client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: throw Exception("Empty response")
-                val json = JSONObject(body)
-                if (json.has("choices")) {
-                    json.getJSONArray("choices")
-                        .getJSONObject(0)
-                        .getJSONObject("message")
-                        .getString("content")
-                } else if (json.has("error")) {
-                    throw Exception(json.getJSONObject("error").getString("message"))
-                } else {
-                    throw Exception("Unknown response: $body")
+                val text = response.body?.string() ?: throw Exception("Empty response")
+                val json = JSONObject(text)
+                if (!response.isSuccessful) {
+                    throw Exception(json.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}")
                 }
+                json.getJSONArray("choices")
+                    .getJSONObject(0)
+                    .getJSONObject("message")
+                    .getString("content")
             }
         }
     }
-    
+
     override suspend fun testConnection(): Result<Long> = withContext(Dispatchers.IO) {
         runCatching {
-            val startTime = System.currentTimeMillis()
+            val start = System.currentTimeMillis()
             val request = Request.Builder()
                 .url("$baseUrl/models")
                 .addHeader("Authorization", "Bearer $apiKey")
                 .get()
                 .build()
-            
-            HttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw Exception("HTTP ${response.code}")
-                }
+
+            HttpClient.client.newCall(request).execute().use {
+                if (!it.isSuccessful) throw Exception("HTTP ${it.code}")
             }
-            System.currentTimeMillis() - startTime
+            System.currentTimeMillis() - start
         }
     }
 }
 
 class OllamaProvider(
-    private val baseUrl: String,
+    override val baseUrl: String,
     private val model: String = "llama3"
 ) : LLMProvider {
-    
-    override val name: String = "Ollama"
-    
+
+    override val name = "Ollama"
+
     override suspend fun complete(
         systemPrompt: String,
         userMessage: String
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val requestBody = JSONObject().apply {
+            val body = JSONObject().apply {
                 put("model", model)
                 put("messages", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "system")
-                        put("content", systemPrompt)
-                    })
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", userMessage)
-                    })
+                    put(JSONObject().put("role", "system").put("content", systemPrompt))
+                    put(JSONObject().put("role", "user").put("content", userMessage))
                 })
                 put("stream", false)
             }.toString()
-            
+
             val request = Request.Builder()
-                .url("$baseUrl/api/chat")
+                .url("${baseUrl.trimEnd('/')}/api/chat")
                 .addHeader("Content-Type", "application/json")
-                .post(requestBody.toRequestBody("application/json".toMediaType()))
+                .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
-            
+
             HttpClient.client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: throw Exception("Empty response")
-                val json = JSONObject(body)
-                if (json.has("message")) {
-                    json.getJSONObject("message").getString("content")
-                } else if (json.has("error")) {
-                    throw Exception(json.getString("error"))
-                } else {
-                    throw Exception("Unknown response: $body")
+                val text = response.body?.string() ?: throw Exception("Empty response")
+                val json = JSONObject(text)
+                if (!response.isSuccessful) {
+                    throw Exception(json.optString("error", "HTTP ${response.code}"))
                 }
+                json.getJSONObject("message").getString("content")
             }
         }
     }
-    
+
     override suspend fun testConnection(): Result<Long> = withContext(Dispatchers.IO) {
         runCatching {
-            val startTime = System.currentTimeMillis()
-            val requestBody = JSONObject().apply {
-                put("model", model)
-            }.toString()
-            
+            val start = System.currentTimeMillis()
             val request = Request.Builder()
-                .url("$baseUrl/api/tags")
-                .post(requestBody.toRequestBody("application/json".toMediaType()))
+                .url("${baseUrl.trimEnd('/')}/api/tags")
+                .get()
                 .build()
-            
-            HttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw Exception("HTTP ${response.code}")
-                }
+
+            HttpClient.client.newCall(request).execute().use {
+                if (!it.isSuccessful) throw Exception("HTTP ${it.code}")
             }
-            System.currentTimeMillis() - startTime
+            System.currentTimeMillis() - start
         }
     }
 }
 
 class CustomProvider(
-    private val baseUrl: String,
+    override val baseUrl: String,
     private val apiKey: String = "",
     private val model: String = "gpt-4o-mini"
 ) : LLMProvider {
-    
-    override val name: String = "Custom"
-    
+
+    override val name = "Custom"
+
     override suspend fun complete(
         systemPrompt: String,
         userMessage: String
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val requestBody = JSONObject().apply {
+            val body = JSONObject().apply {
                 put("model", model)
                 put("messages", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "system")
-                        put("content", systemPrompt)
-                    })
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", userMessage)
-                    })
+                    put(JSONObject().put("role", "system").put("content", systemPrompt))
+                    put(JSONObject().put("role", "user").put("content", userMessage))
                 })
                 put("max_tokens", 1024)
                 put("temperature", 0.1)
             }.toString()
-            
+
             val builder = Request.Builder()
-                .url("$baseUrl/chat/completions")
+                .url("${baseUrl.trimEnd('/')}/chat/completions")
                 .addHeader("Content-Type", "application/json")
-                .post(requestBody.toRequestBody("application/json".toMediaType()))
-            
+                .post(body.toRequestBody("application/json".toMediaType()))
+
             if (apiKey.isNotBlank()) {
                 builder.addHeader("Authorization", "Bearer $apiKey")
             }
-            
+
             HttpClient.client.newCall(builder.build()).execute().use { response ->
-                val body = response.body?.string() ?: throw Exception("Empty response")
-                val json = JSONObject(body)
-                if (json.has("choices")) {
-                    json.getJSONArray("choices")
-                        .getJSONObject(0)
-                        .getJSONObject("message")
-                        .getString("content")
-                } else if (json.has("error")) {
-                    throw Exception(json.getJSONObject("error").getString("message"))
-                } else {
-                    throw Exception("Unknown response: $body")
+                val text = response.body?.string() ?: throw Exception("Empty response")
+                val json = JSONObject(text)
+                if (!response.isSuccessful) {
+                    throw Exception(json.optJSONObject("error")?.optString("message") ?: "HTTP ${response.code}")
                 }
+                json.getJSONArray("choices")
+                    .getJSONObject(0)
+                    .getJSONObject("message")
+                    .getString("content")
             }
         }
     }
-    
+
     override suspend fun testConnection(): Result<Long> = withContext(Dispatchers.IO) {
         runCatching {
-            val startTime = System.currentTimeMillis()
-            
+            val start = System.currentTimeMillis()
             val builder = Request.Builder()
-                .url("$baseUrl/models")
+                .url("${baseUrl.trimEnd('/')}/models")
                 .get()
-            
+
             if (apiKey.isNotBlank()) {
                 builder.addHeader("Authorization", "Bearer $apiKey")
             }
-            
-            HttpClient.client.newCall(builder.build()).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw Exception("HTTP ${response.code}")
-                }
+
+            HttpClient.client.newCall(builder.build()).execute().use {
+                if (!it.isSuccessful) throw Exception("HTTP ${it.code}")
             }
-            System.currentTimeMillis() - startTime
+            System.currentTimeMillis() - start
         }
     }
 }
