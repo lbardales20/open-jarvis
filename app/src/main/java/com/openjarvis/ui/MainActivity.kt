@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import android.content.ComponentName
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
@@ -67,7 +68,7 @@ class MainActivity : ComponentActivity() {
         graphifyRepo = GraphifyRepository(this)
         agentCore = AgentCore(applicationContext)
         voiceManager = VoiceManager(applicationContext) { command ->
-            agentCore.executeTask(command)
+            handleVoiceCommand(command)
         }
 
         setContent {
@@ -165,6 +166,27 @@ class MainActivity : ComponentActivity() {
             "Jarvis está activo",
             Toast.LENGTH_SHORT
         ).show()
+    }
+
+    private fun handleVoiceCommand(command: String) {
+        val youtubePattern = Regex(
+            """(?i)(?:jarvis[ ,]*)?(?:abre|abrir|open)\\s+(?:la\\s+)?(?:app\\s+)?youtube\\s+(?:y\\s+)?(?:busca|buscar|search)\\s+(.+)"""
+        )
+        val query = youtubePattern.find(command.trim())?.groupValues?.getOrNull(1)?.trim()
+
+        if (!query.isNullOrBlank()) {
+            val searchUri = Uri.parse(
+                "https://www.youtube.com/results?search_query=" + Uri.encode(query)
+            )
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, searchUri))
+                return
+            } catch (_: Exception) {
+                // Fall through to the AI agent if YouTube cannot be opened.
+            }
+        }
+
+        agentCore.executeTask(command)
     }
 
     private fun openSettings() {
