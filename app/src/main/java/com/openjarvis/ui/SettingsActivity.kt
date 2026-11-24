@@ -13,10 +13,12 @@ import androidx.core.view.WindowCompat
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.openjarvis.ui.settings.SettingsScreen
+import com.openjarvis.voice.VoiceManager
 
 class SettingsActivity : ComponentActivity() {
 
     private lateinit var prefs: SharedPreferences
+    private lateinit var voiceManager: VoiceManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,12 +43,22 @@ class SettingsActivity : ComponentActivity() {
             return
         }
 
+        voiceManager = VoiceManager(applicationContext)
+
         setContent {
             MaterialTheme {
                 SettingsScreen(
                     onNavigateBack = { finish() },
                     onSaveProvider = { name, baseUrl, apiKey, model ->
                         saveProviderSettings(name, baseUrl, apiKey, model)
+                    },
+                    initialVoiceEnabled = voiceManager.isVoiceEnabled(),
+                    initialSpeakResults = voiceManager.isSpeakResultsEnabled(),
+                    onVoiceEnabledChange = { enabled ->
+                        voiceManager.setVoiceEnabled(enabled)
+                    },
+                    onSpeakResultsChange = { enabled ->
+                        voiceManager.setSpeakResultsEnabled(enabled)
                     },
                     modifier = Modifier.fillMaxSize()
                 )
