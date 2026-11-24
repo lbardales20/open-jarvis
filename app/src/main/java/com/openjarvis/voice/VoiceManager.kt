@@ -1,3 +1,4 @@
+
 package com.openjarvis.voice
 
 import android.content.Context
@@ -7,12 +8,13 @@ import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class VoiceManager(private val context: Context) {
+class VoiceManager(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "voice_prefs"
@@ -22,21 +24,28 @@ class VoiceManager(private val context: Context) {
         private const val KEY_SPEECH_RATE = "speech_rate"
     }
 
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+    private val appContext = context.applicationContext
 
-    private val prefs: SharedPreferences = EncryptedSharedPreferences.create(
-        context,
-        PREFS_NAME,
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    private val prefs: SharedPreferences by lazy {
+        val masterKey = MasterKey.Builder(appContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        EncryptedSharedPreferences.create(
+            appContext,
+            PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    private val sttEngine = AndroidSTTEngine(appContext)
+    private val ttsEngine = AndroidTTSEngine(appContext)
+
+    private val scope = CoroutineScope(
+        Dispatchers.Main + SupervisorJob()
     )
-
-    private val sttEngine = AndroidSTTEngine(context)
-    private val ttsEngine = AndroidTTSEngine(context)
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val _state = MutableStateFlow<VoiceState>(VoiceState.Idle)
     val state: StateFlow<VoiceState> = _state.asStateFlow()
@@ -50,18 +59,24 @@ class VoiceManager(private val context: Context) {
     }
 
     init {
-        // Apply saved settings
         ttsEngine.setSpeechRate(getSpeechRate())
     }
 
-    fun isVoiceEnabled(): Boolean = prefs.getBoolean(KEY_VOICE_ENABLED, false)
+    fun isVoiceEnabled(): Boolean =
+        prefs.getBoolean(KEY_VOICE_ENABLED, false)
 
     fun setVoiceEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_VOICE_ENABLED, enabled).apply()
+        prefs.edit()
+            .putBoolean(KEY_VOICE_ENABLED, enabled)
+            .apply()
     }
 
     fun getSTTMode(): STTMode {
-        val mode = prefs.getString(KEY_STT_MODE, STTMode.PUSH_TO_TALK.name)
+        val mode = prefs.getString(
+            KEY_STT_MODE,
+            STTMode.PUSH_TO_TALK.name
+        )
+
         return try {
             STTMode.valueOf(mode ?: STTMode.PUSH_TO_TALK.name)
         } catch (e: Exception) {
@@ -70,87 +85,123 @@ class VoiceManager(private val context: Context) {
     }
 
     fun setSTTMode(mode: STTMode) {
-        prefs.edit().putString(KEY_STT_MODE, mode.name).apply()
+        prefs.edit()
+            .putString(KEY_STT_MODE, mode.name)
+            .apply()
     }
 
-    fun isSpeakResultsEnabled(): Boolean = prefs.getBoolean(KEY_SPEAK_RESULTS, true)
+    fun isSpeakResultsEnabled(): Boolean =
+        prefs.getBoolean(KEY_SPEAK_RESULTS, true)
 
     fun setSpeakResultsEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SPEAK_RESULTS, enabled).apply()
+        prefs.edit()
+            .putBoolean(KEY_SPEAK_RESULTS, enabled)
+            .apply()
     }
 
-    fun getSpeechRate(): Float = prefs.getFloat(KEY_SPEECH_RATE, 1.05f)
+    fun getSpeechRate(): Float =
+        prefs.getFloat(KEY_SPEECH_RATE, 1.05f)
 
     fun setSpeechRate(rate: Float) {
-        prefs.edit().putFloat(KEY_SPEECH_RATE, rate.coerceIn(0.5f, 2.0f)).apply()
-        ttsEngine.setSpeechRate(rate)
+        val safeRate = rate.coerceIn(0.5f, 2.0f)
+
+        prefs.edit()
+            .putFloat(KEY_SPEECH_RATE, safeRate)
+            .apply()
+
+        ttsEngine.setSpeechRate(safeRate)
     }
 
-    // Push-to-talk mode
     fun startListening() {
         if (!isVoiceEnabled()) {
-            _state.value = VoiceState.Error("Voice disabled in settings")
+            _state.value = VoiceState.Error(
+                "Voice disabled in settings"
+            )
             return
         }
 
         scope.launch {
             _state.value = VoiceState.Recording
 
-            sttEngine.startListening(
-                onResult = { text ->
-                    if (!text.isNullOrBlank()) {
-                        _state.value = VoiceState.Result(text)
-                        if (isSpeakResultsEnabled()) {
-                            ttsEngine.speak("Heard: $text")
+            try {
+                sttEngine.startListening(
+                    onResult = { text ->
+                        if (!text.isNullOrBlank()) {
+                            _state.value = VoiceState.Result(text)
+
+                            if (isSpeakResultsEnabled()) {
+                                ttsEngine.speak("He escuchado: $text")
+                            }
+                        } else {
+                            _state.value = VoiceState.Error(
+                                "Could not understand audio"
+                            )
                         }
-                    } else {
-                        _state.value = VoiceState.Error("Could not understand audio")
+                    },
+                    onError = { error ->
+                        _state.value = VoiceState.Error(error)
                     }
-                },
-                onError = { error ->
-                    _state.value = VoiceState.Error(error)
-                }
-            )
+                )
+            } catch (e: Exception) {
+                _state.value = VoiceState.Error(
+                    e.message ?: "Could not start voice recognition"
+                )
+            }
         }
     }
 
     fun stopListening(): String? {
-        val text = sttEngine.stop()
-        _state.value = if (!text.isNullOrBlank()) {
-            VoiceState.Result(text)
-        } else {
-            VoiceState.Idle
+        return try {
+            val text = sttEngine.stop()
+
+            _state.value = if (!text.isNullOrBlank()) {
+                VoiceState.Result(text)
+            } else {
+                VoiceState.Idle
+            }
+
+            text
+        } catch (e: Exception) {
+            _state.value = VoiceState.Error(
+                e.message ?: "Could not stop voice recognition"
+            )
+            null
         }
-        return text
     }
 
-    // Auto VAD mode
     fun startListeningWithVAD() {
         if (!isVoiceEnabled()) {
-            _state.value = VoiceState.Error("Voice disabled in settings")
+            _state.value = VoiceState.Error(
+                "Voice disabled in settings"
+            )
             return
         }
 
         scope.launch {
             _state.value = VoiceState.Recording
-            _state.value = VoiceState.Transcribing
 
-            // For now, use simple push-to-talk with Android's built-in VAD
-            sttEngine.startListening(
-                onResult = { text ->
-                    if (!text.isNullOrBlank()) {
-                        _state.value = VoiceState.Result(text)
-                        if (isSpeakResultsEnabled()) {
-                            ttsEngine.speak("Heard: $text")
+            try {
+                sttEngine.startListening(
+                    onResult = { text ->
+                        if (!text.isNullOrBlank()) {
+                            _state.value = VoiceState.Result(text)
+
+                            if (isSpeakResultsEnabled()) {
+                                ttsEngine.speak("He escuchado: $text")
+                            }
+                        } else {
+                            _state.value = VoiceState.Idle
                         }
-                    } else {
-                        _state.value = VoiceState.Idle
+                    },
+                    onError = { error ->
+                        _state.value = VoiceState.Error(error)
                     }
-                },
-                onError = { error ->
-                    _state.value = VoiceState.Error(error)
-                }
-            )
+                )
+            } catch (e: Exception) {
+                _state.value = VoiceState.Error(
+                    e.message ?: "Voice recognition failed"
+                )
+            }
         }
     }
 
@@ -165,14 +216,27 @@ class VoiceManager(private val context: Context) {
     }
 
     fun resetState() {
-        if (_state.value is VoiceState.Result || _state.value is VoiceState.Error) {
+        if (
+            _state.value is VoiceState.Result ||
+            _state.value is VoiceState.Error
+        ) {
             _state.value = VoiceState.Idle
         }
     }
 
     fun release() {
-        sttEngine.release()
-        ttsEngine.release()
+        try {
+            sttEngine.release()
+        } catch (e: Exception) {
+            // Avoid crashing during cleanup.
+        }
+
+        try {
+            ttsEngine.release()
+        } catch (e: Exception) {
+            // Avoid crashing during cleanup.
+        }
+
         scope.cancel()
     }
 }
