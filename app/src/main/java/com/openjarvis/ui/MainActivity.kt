@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.openjarvis.accessibility.JarvisAccessibilityService
 import com.openjarvis.agent.AgentCore
+import com.openjarvis.agent.AgentState
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.openjarvis.graphify.GraphifyRepository
 import com.openjarvis.ui.dashboard.DashboardScreen
 import com.openjarvis.ui.tasks.TasksScreen
@@ -69,6 +72,16 @@ class MainActivity : ComponentActivity() {
         agentCore = AgentCore(applicationContext)
         voiceManager = VoiceManager(applicationContext) { command ->
             handleVoiceCommand(command)
+        }
+
+        lifecycleScope.launch {
+            agentCore.state.collect { state ->
+                when (state) {
+                    is AgentState.Done -> voiceManager.speak("Listo. He terminado la tarea.")
+                    is AgentState.Error -> voiceManager.speak("No pude completar la orden. " + state.message)
+                    else -> Unit
+                }
+            }
         }
 
         setContent {
@@ -172,7 +185,7 @@ class MainActivity : ComponentActivity() {
         val youtubePattern = Regex(
             """(?i)(?:jarvis[ ,]*)?(?:abre|abrir|open)\s+(?:la\s+)?(?:app\s+)?youtube\s+(?:y\s+)?(?:busca|buscar|search)\s+(.+)"""
         )
-        val query = youtubePattern.find(command.trim())?.groupValues?.getOrNull(1)?.trim()
+        val query = youtubePattern.find(command.trim())?.groupValues?.getOrNull(1)?.trim()?.trimEnd('.', ',', '!', '?')
 
         if (!query.isNullOrBlank()) {
             val searchUri = Uri.parse(
