@@ -233,7 +233,7 @@ private fun VoiceControlCard(voiceManager: VoiceManager, onStartVoice: () -> Uni
                     )
                     .clickable {
                         if (isRecording) {
-                            voiceManager.stopListening()
+                            voiceManager.cancelListening()
                         } else if (enabled) {
                             onStartVoice()
                         } else {
