@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Divider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Task
@@ -75,15 +76,13 @@ fun DashboardScreen(
         mutableStateOf<List<AppNode>>(emptyList())
     }
 
-    var isSystemActive by remember {
-        mutableStateOf(true)
-    }
+    val isSystemActive = true
 
     var statsAlpha by remember { mutableFloatStateOf(0f) }
     var tasksAlpha by remember { mutableFloatStateOf(0f) }
     var appsAlpha by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(graphifyRepo) {
         try {
             recentTasks = graphifyRepo.getRecentTasks(10)
             mostUsedApps = graphifyRepo.getMostUsedApps(4)
@@ -222,9 +221,7 @@ private fun HeroSection(isSystemActive: Boolean) {
         Spacer(modifier = Modifier.height(8.dp))
 
         val annotatedText = buildAnnotatedString {
-            withStyle(
-                SpanStyle(color = JarvisText)
-            ) {
+            withStyle(SpanStyle(color = JarvisText)) {
                 append("OPEN")
             }
 
@@ -233,10 +230,7 @@ private fun HeroSection(isSystemActive: Boolean) {
             withStyle(
                 SpanStyle(
                     brush = Brush.linearGradient(
-                        colors = listOf(
-                            JarvisViolet,
-                            JarvisCyan
-                        )
+                        colors = listOf(JarvisViolet, JarvisCyan)
                     )
                 )
             ) {
@@ -317,11 +311,7 @@ private fun StatusBadge(isActive: Boolean) {
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = if (isActive) {
-                    "System Active"
-                } else {
-                    "Tap to Activate"
-                },
+                text = if (isActive) "System Active" else "Tap to Activate",
                 style = TextStyle(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
@@ -414,9 +404,7 @@ private fun RecentTasksSection(
     tasks: List<TaskNode>,
     alpha: Float
 ) {
-    Column(
-        modifier = Modifier.alpha(alpha)
-    ) {
+    Column(modifier = Modifier.alpha(alpha)) {
         Text(
             text = "RECENT TASKS",
             style = TextStyle(
@@ -440,7 +428,6 @@ private fun RecentTasksSection(
         } else {
             tasks.take(5).forEach { task ->
                 TaskCard(task = task)
-
                 Spacer(modifier = Modifier.height(10.dp))
             }
         }
@@ -457,11 +444,7 @@ private fun TaskCard(task: TaskNode) {
         ignoreCase = true
     )
 
-    val outcomeColor = if (isSuccess) {
-        JarvisGreen
-    } else {
-        JarvisRed
-    }
+    val outcomeColor = if (isSuccess) JarvisGreen else JarvisRed
 
     Surface(
         modifier = Modifier
@@ -519,9 +502,7 @@ private fun TaskCard(task: TaskNode) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     AppInitialBadge(label = task.command)
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -597,9 +578,7 @@ private fun QuickAppsSection(
     apps: List<AppNode>,
     alpha: Float
 ) {
-    Column(
-        modifier = Modifier.alpha(alpha)
-    ) {
+    Column(modifier = Modifier.alpha(alpha)) {
         Text(
             text = "QUICK APPS",
             style = TextStyle(
@@ -679,7 +658,7 @@ private fun BottomNavBar(
         color = JarvisSurfaceDark
     ) {
         Column {
-            HorizontalDivider(
+            Divider(
                 modifier = Modifier.fillMaxWidth(),
                 thickness = 1.dp,
                 color = JarvisBorder
