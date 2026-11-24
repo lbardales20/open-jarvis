@@ -1,7 +1,6 @@
 
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -18,8 +17,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.OpenJarvis"
-        tools:targetApi="34">
+        android:theme="@style/Theme.OpenJarvis">
 
         <activity
             android:name="com.openjarvis.ui.MainActivity"
@@ -49,12 +47,7 @@
 
         <service
             android:name="com.openjarvis.ui.OverlayService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="ai_assistant_overlay" />
-        </service>
+            android:exported="false" />
 
         <service
             android:name="com.openjarvis.local.DownloadService"
