@@ -15,15 +15,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import com.openjarvis.ui.theme.OpenJarvisTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -38,7 +35,7 @@ class OnboardingActivity : ComponentActivity() {
         }
 
         setContent {
-            OpenJarvisTheme {
+            MaterialTheme {
                 OnboardingScreen(
                     onComplete = { finish() }
                 )
@@ -89,10 +86,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
 
                 3 -> TryItScreen(
                     onBack = { currentScreen = 2 },
-                    onSuccess = {
-                        completeOnboarding(context)
-                        onComplete()
-                    }
+                    onSuccess = { currentScreen = 4 }
                 )
 
                 4 -> ReadyScreen(
@@ -111,7 +105,9 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     TextButton(
-                        onClick = { currentScreen-- }
+                        onClick = {
+                            currentScreen = (currentScreen - 1).coerceAtLeast(0)
+                        }
                     ) {
                         Text(
                             "Back",
@@ -120,7 +116,9 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     }
 
                     TextButton(
-                        onClick = { currentScreen++ }
+                        onClick = {
+                            currentScreen = (currentScreen + 1).coerceAtMost(4)
+                        }
                     ) {
                         Text(
                             "Skip",
