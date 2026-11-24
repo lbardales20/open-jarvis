@@ -222,7 +222,8 @@ class VoiceManager(
                     },
                     onError = { error ->
                         _state.value = VoiceState.Error(error)
-                    }
+                    },
+                    languageTag = getLanguage()
                 )
             } catch (e: Exception) {
                 _state.value = VoiceState.Error(
