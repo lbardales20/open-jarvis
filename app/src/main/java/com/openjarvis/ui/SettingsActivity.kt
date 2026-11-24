@@ -7,12 +7,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.openjarvis.ui.settings.SettingsScreen
-import com.openjarvis.ui.theme.OpenJarvisTheme
 
 class SettingsActivity : ComponentActivity() {
 
@@ -42,7 +42,7 @@ class SettingsActivity : ComponentActivity() {
         }
 
         setContent {
-            OpenJarvisTheme {
+            MaterialTheme {
                 SettingsScreen(
                     onNavigateBack = { finish() },
                     onSaveProvider = { name, baseUrl, apiKey, model ->
