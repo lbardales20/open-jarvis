@@ -1,3 +1,4 @@
+
 package com.openjarvis.ui.settings
 
 import androidx.compose.animation.*
@@ -15,24 +16,37 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openjarvis.llm.UniversalAdapter
-import com.openjarvis.ui.theme.VoidColor
+import kotlinx.coroutines.delay
+
+private val SettingsBackground = Color(0xFF09090F)
+private val SettingsSurface = Color(0xFF181820)
+private val SettingsSurfaceLight = Color(0xFF22222D)
+private val SettingsViolet = Color(0xFF9B7BFF)
+private val SettingsCyan = Color(0xFF42D9FF)
+private val SettingsGreen = Color(0xFF4ADE80)
+private val SettingsRed = Color(0xFFFF5C70)
+private val SettingsAmber = Color(0xFFFFC15A)
+private val SettingsText = Color(0xFFF2F0FA)
+private val SettingsSecondary = Color(0xFFB0ADBC)
+private val SettingsMuted = Color(0xFF777584)
+private val SettingsBorder = Color(0xFF343442)
 
 @Composable
 fun SettingsScreen(
@@ -47,31 +61,30 @@ fun SettingsScreen(
     var showBaseUrlField by remember { mutableStateOf(false) }
     var showProvidersDropdown by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
-    var lastSaved by remember { mutableStateOf(0L) }
     var savedVisible by remember { mutableStateOf(false) }
     var voiceEnabled by remember { mutableStateOf(false) }
     var speakResults by remember { mutableStateOf(true) }
-    var speechRate by remember { mutableStateOf(1.05f) }
     var sttMode by remember { mutableStateOf("Push to Talk") }
-    
+
     LaunchedEffect(selectedProvider) {
-        showBaseUrlField = selectedProvider == "Custom"
+        showBaseUrlField = selectedProvider == "Custom" ||
+            selectedProvider == "Ollama (Local)"
     }
-    
+
     val scrollState = rememberScrollState()
-    
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(VoidColor.Void950)
+            .background(SettingsBackground)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            SettingsHeader(onNavigateBack = onNavigateBack)
-            
+            SettingsHeader(onNavigateBack)
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -79,152 +92,155 @@ fun SettingsScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 SectionLabel("AI PROVIDER")
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 ProviderSelectorCard(
                     selectedProvider = selectedProvider,
                     isExpanded = showProvidersDropdown,
-                    onToggle = { showProvidersDropdown = !showProvidersDropdown },
-                    onSelect = { provider ->
-                        selectedProvider = provider
+                    onToggle = {
+                        showProvidersDropdown = !showProvidersDropdown
+                    },
+                    onSelect = {
+                        selectedProvider = it
                         showProvidersDropdown = false
                     }
                 )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 FloatingLabelTextField(
                     value = baseUrl,
                     onValueChange = { baseUrl = it },
                     label = "Base URL",
-                    isFocused = showBaseUrlField,
+                    isFocused = false,
                     visible = showBaseUrlField
                 )
-                
+
                 FloatingLabelTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
                     label = "API Key",
                     isFocused = false,
-                    isPassword = !showPassword,
-                    onTogglePassword = { showPassword = !showPassword }
+                    isPassword = true,
+                    showPassword = showPassword,
+                    onTogglePassword = {
+                        showPassword = !showPassword
+                    }
                 )
-                
+
                 FloatingLabelTextField(
                     value = model,
                     onValueChange = { model = it },
                     label = "Model",
                     isFocused = false
                 )
-                
+
                 Text(
-                    text = "Works with any OpenAI-compatible API",
+                    text = "Works with compatible AI providers",
                     style = TextStyle(
-                        fontFamily = FontFamily.Default,
-                        fontWeight = FontWeight(400),
                         fontSize = 11.sp,
-                        color = VoidColor.TextDisabled
+                        color = SettingsMuted
                     )
                 )
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
-                TestConnectionButton(
-                    apiKey = apiKey,
-                    baseUrl = baseUrl,
-                    model = model,
-                    onSave = { name, url, key, mdl ->
-                        onSaveProvider(name, url, key, mdl)
-                        lastSaved = System.currentTimeMillis()
+
+                SaveProviderButton(
+                    onClick = {
+                        onSaveProvider(
+                            selectedProvider,
+                            baseUrl,
+                            apiKey,
+                            model
+                        )
                         savedVisible = true
                     }
                 )
-                
+
                 Spacer(modifier = Modifier.height(32.dp))
-                
+
                 SectionLabel("VOICE")
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 SettingsToggleRow(
                     title = "Voice Assistant",
                     subtitle = "Push to Talk · VAD supported",
                     enabled = voiceEnabled,
-                    onToggle = { voiceEnabled = !voiceEnabled }
+                    onToggle = {
+                        voiceEnabled = !voiceEnabled
+                    }
                 )
-                
+
                 if (voiceEnabled) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     SettingsToggleRow(
                         title = "Speak Results",
                         subtitle = "Jarvis reads results aloud",
                         enabled = speakResults,
-                        onToggle = { speakResults = !speakResults }
+                        onToggle = {
+                            speakResults = !speakResults
+                        }
                     )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // STT Mode selector
+
                     Surface(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                sttMode =
+                                    if (sttMode == "Push to Talk") {
+                                        "Auto (VAD)"
+                                    } else {
+                                        "Push to Talk"
+                                    }
+                            },
                         shape = RoundedCornerShape(16.dp),
-                        color = VoidColor.Void900,
-                        border = BorderStroke(1.dp, VoidColor.BorderSubtle)
+                        color = SettingsSurface,
+                        border = BorderStroke(1.dp, SettingsBorder)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { 
-                                    sttMode = if (sttMode == "Push to Talk") "Auto (VAD)" else "Push to Talk"
-                                }
-                                .padding(16.dp),
+                            modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text(
                                     text = "STT Mode",
-                                    style = TextStyle(
-                                        fontFamily = FontFamily.Default,
-                                        fontWeight = FontWeight(500),
-                                        fontSize = 14.sp,
-                                        color = VoidColor.TextPrimary
-                                    )
+                                    color = SettingsText,
+                                    fontSize = 14.sp
                                 )
+
                                 Text(
-                                    text = if (sttMode == "Push to Talk") 
-                                        "Hold mic to record, release to send" 
-                                    else 
-                                        "Tap to record, auto-sends on silence",
-                                    style = TextStyle(
-                                        fontFamily = FontFamily.Default,
-                                        fontWeight = FontWeight(400),
-                                        fontSize = 11.sp,
-                                        color = VoidColor.TextDisabled
-                                    )
+                                    text = if (sttMode == "Push to Talk") {
+                                        "Hold mic to record, release to send"
+                                    } else {
+                                        "Tap to record, auto-sends on silence"
+                                    },
+                                    color = SettingsMuted,
+                                    fontSize = 11.sp
                                 )
                             }
+
                             Text(
                                 text = sttMode,
-                                style = TextStyle(
-                                    fontFamily = FontFamily.Default,
-                                    fontWeight = FontWeight(500),
-                                    fontSize = 12.sp,
-                                    color = VoidColor.Violet
-                                )
+                                color = SettingsViolet,
+                                fontSize = 12.sp
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Model status
+
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = VoidColor.Void800,
-                        border = BorderStroke(1.dp, VoidColor.BorderSubtle)
+                        color = SettingsSurface,
+                        border = BorderStroke(1.dp, SettingsBorder)
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -233,73 +249,67 @@ fun SettingsScreen(
                             Icon(
                                 imageVector = Icons.Default.Mic,
                                 contentDescription = null,
-                                tint = VoidColor.Green,
+                                tint = SettingsGreen,
                                 modifier = Modifier.size(20.dp)
                             )
+
                             Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
+
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text(
                                     text = "Speech Recognition",
-                                    style = TextStyle(
-                                        fontFamily = FontFamily.Default,
-                                        fontWeight = FontWeight(500),
-                                        fontSize = 14.sp,
-                                        color = VoidColor.TextPrimary
-                                    )
+                                    color = SettingsText,
+                                    fontSize = 14.sp
                                 )
+
                                 Text(
                                     text = "Google Speech · Online",
-                                    style = TextStyle(
-                                        fontFamily = FontFamily.Default,
-                                        fontWeight = FontWeight(400),
-                                        fontSize = 11.sp,
-                                        color = VoidColor.TextDisabled
-                                    )
+                                    color = SettingsMuted,
+                                    fontSize = 11.sp
                                 )
                             }
+
                             Text(
                                 text = "Ready",
-                                style = TextStyle(
-                                    fontFamily = FontFamily.Default,
-                                    fontWeight = FontWeight(500),
-                                    fontSize = 12.sp,
-                                    color = VoidColor.Green
-                                )
+                                color = SettingsGreen,
+                                fontSize = 12.sp
                             )
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(32.dp))
-                
+
                 SectionLabel("PERMISSIONS")
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 PermissionRow(
                     title = "Accessibility",
                     subtitle = "Required — Tap to enable"
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 PermissionRow(
                     title = "Overlay",
                     subtitle = "Required — Tap to enable"
                 )
-                
+
                 Spacer(modifier = Modifier.height(32.dp))
-                
+
                 SectionLabel("ABOUT")
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 AboutSection()
-                
+
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
-        
+
         SavedToast(
             visible = savedVisible,
             onDismiss = { savedVisible = false },
@@ -313,50 +323,42 @@ fun SettingsScreen(
 
 @Composable
 private fun SettingsHeader(onNavigateBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(88.dp)
-            .padding(horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onNavigateBack) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Back",
-                tint = VoidColor.TextSecondary
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onNavigateBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "Back",
+                    tint = SettingsSecondary
+                )
+            }
+
+            Text(
+                text = "Settings",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = SettingsText
             )
         }
-        
-        Text(
-            text = "Settings",
-            style = TextStyle(
-                fontFamily = FontFamily.Default,
-                fontWeight = FontWeight(600),
-                fontSize = 20.sp,
-                color = VoidColor.TextPrimary
-            )
-        )
+
+        Divider(color = SettingsBorder, thickness = 1.dp)
     }
-    
-    Divider(
-        modifier = Modifier.fillMaxWidth(),
-        thickness = 1.dp,
-        color = VoidColor.BorderSubtle
-    )
 }
 
 @Composable
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        style = TextStyle(
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight(600),
-            fontSize = 10.sp,
-            letterSpacing = 3.sp,
-            color = VoidColor.TextDisabled
-        )
+        fontSize = 10.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 3.sp,
+        color = SettingsMuted
     )
 }
 
@@ -367,19 +369,29 @@ private fun ProviderSelectorCard(
     onToggle: () -> Unit,
     onSelect: (String) -> Unit
 ) {
-    val borderColor by animateColorAsState(
-        targetValue = if (isExpanded) VoidColor.BorderGlow else VoidColor.BorderSubtle,
-        animationSpec = tween(200),
-        label = "border"
+    val providers = listOf(
+        "Groq",
+        "Google Gemini",
+        "OpenRouter",
+        "Anthropic Claude",
+        "OpenAI",
+        "Ollama (Local)",
+        "Custom"
     )
-    
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isExpanded) SettingsViolet else SettingsBorder,
+        animationSpec = tween(200),
+        label = "provider_border"
+    )
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clickable(onClick = onToggle),
+            .clickable { onToggle() },
         shape = RoundedCornerShape(16.dp),
-        color = VoidColor.Void900,
+        color = SettingsSurface,
         border = BorderStroke(1.dp, borderColor)
     ) {
         Row(
@@ -388,49 +400,41 @@ private fun ProviderSelectorCard(
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ProviderDot(provider = selectedProvider)
-            
+            ProviderDot(selectedProvider)
+
             Spacer(modifier = Modifier.width(12.dp))
-            
+
             Text(
                 text = selectedProvider,
-                style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(500),
-                    fontSize = 14.sp,
-                    color = VoidColor.TextPrimary
-                ),
+                color = SettingsText,
+                fontSize = 14.sp,
                 modifier = Modifier.weight(1f)
             )
-            
-            val rotationAngle by animateFloatAsState(
-                targetValue = if (isExpanded) 180f else 0f,
-                animationSpec = tween(200),
-                label = "rotation"
-            )
-            
+
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = VoidColor.TextDisabled,
-                modifier = Modifier.graphicsLayer(rotationZ = rotationAngle)
+                tint = SettingsMuted,
+                modifier = Modifier.graphicsLayer {
+                    rotationZ = if (isExpanded) 90f else 0f
+                }
             )
         }
     }
-    
+
     AnimatedVisibility(
         visible = isExpanded,
-        enter = expandVertically() + fadeIn(animationSpec = tween(200)),
-        exit = shrinkVertically() + fadeOut(animationSpec = tween(200))
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut()
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            color = VoidColor.Void800,
-            border = BorderStroke(1.dp, VoidColor.BorderSubtle)
+            color = SettingsSurface,
+            border = BorderStroke(1.dp, SettingsBorder)
         ) {
             Column {
-                UniversalAdapter.AVAILABLE_PROVIDERS.forEach { provider ->
+                providers.forEach { provider ->
                     ProviderOption(
                         label = provider,
                         isSelected = provider == selectedProvider,
@@ -444,21 +448,21 @@ private fun ProviderSelectorCard(
 
 @Composable
 private fun ProviderDot(provider: String) {
-    val colors = mapOf(
-        "Groq" to VoidColor.Violet,
-        "Google Gemini" to VoidColor.Cyan,
-        "OpenRouter" to VoidColor.Green,
-        "Anthropic Claude" to VoidColor.Amber,
-        "OpenAI" to VoidColor.Green,
-        "Ollama (Local)" to VoidColor.Cyan,
-        "Custom" to VoidColor.Violet
-    )
-    
+    val color = when (provider) {
+        "Groq" -> SettingsViolet
+        "Google Gemini" -> SettingsCyan
+        "OpenRouter" -> SettingsGreen
+        "Anthropic Claude" -> SettingsAmber
+        "OpenAI" -> SettingsGreen
+        "Ollama (Local)" -> SettingsCyan
+        else -> SettingsViolet
+    }
+
     Box(
         modifier = Modifier
             .size(8.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .background(colors[provider] ?: VoidColor.Violet)
+            .clip(CircleShape)
+            .background(color)
     )
 }
 
@@ -471,7 +475,7 @@ private fun ProviderOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable { onClick() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -480,22 +484,17 @@ private fun ProviderOption(
                 modifier = Modifier
                     .width(3.dp)
                     .height(16.dp)
-                    .background(VoidColor.Violet)
+                    .background(SettingsViolet)
             )
-            
             Spacer(modifier = Modifier.width(12.dp))
         } else {
             Spacer(modifier = Modifier.width(15.dp))
         }
-        
+
         Text(
             text = label,
-            style = TextStyle(
-                fontFamily = FontFamily.Default,
-                fontWeight = FontWeight(500),
-                fontSize = 14.sp,
-                color = if (isSelected) VoidColor.Violet else VoidColor.TextPrimary
-            )
+            fontSize = 14.sp,
+            color = if (isSelected) SettingsViolet else SettingsText
         )
     }
 }
@@ -507,135 +506,111 @@ fun FloatingLabelTextField(
     label: String,
     isFocused: Boolean,
     isPassword: Boolean = false,
+    showPassword: Boolean = false,
     visible: Boolean = true,
     onTogglePassword: (() -> Unit)? = null
 ) {
-    val labelOffset by animateFloatAsState(
-        targetValue = if (isFocused || value.isNotEmpty()) -20f else 0f,
-        animationSpec = spring(stiffness = 300f, dampingRatio = 0.75f),
-        label = "offset"
-    )
-    
-    val labelScale by animateFloatAsState(
-        targetValue = if (isFocused || value.isNotEmpty()) 0.75f else 1f,
-        animationSpec = spring(stiffness = 300f, dampingRatio = 0.75f),
-        label = "scale"
-    )
-    
-    val borderColor by animateColorAsState(
-        targetValue = if (isFocused) VoidColor.Violet else VoidColor.BorderSubtle,
-        animationSpec = tween(200),
-        label = "border"
-    )
-    
     if (!visible) return
-    
+
+    val hasContent = value.isNotEmpty()
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) SettingsViolet else SettingsBorder,
+        animationSpec = tween(200),
+        label = "field_border"
+    )
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp),
+            .padding(bottom = 12.dp)
+            .height(60.dp),
         shape = RoundedCornerShape(14.dp),
-        color = VoidColor.Void900,
+        color = SettingsSurface,
         border = BorderStroke(1.dp, borderColor)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+        ) {
             Text(
                 text = label,
-                style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(400),
-                    fontSize = 14.sp,
-                    color = VoidColor.TextSecondary
-                ),
-                modifier = Modifier.graphicsLayer {
-                    translationY = labelOffset.dp.toPx()
-                    scaleX = labelScale
-                    scaleY = labelScale
-                }
+                fontSize = if (hasContent) 10.sp else 14.sp,
+                color = if (hasContent) SettingsViolet else SettingsSecondary,
+                modifier = Modifier
+                    .align(
+                        if (hasContent) Alignment.TopStart
+                        else Alignment.CenterStart
+                    )
+                    .padding(top = if (hasContent) 6.dp else 0.dp)
             )
-            
+
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
+                    .align(Alignment.BottomStart)
+                    .padding(
+                        bottom = 8.dp,
+                        end = if (isPassword) 36.dp else 0.dp
+                    ),
+                singleLine = true,
                 textStyle = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(400),
                     fontSize = 14.sp,
-                    color = VoidColor.TextPrimary
+                    color = SettingsText
                 ),
-                visualTransformation = if (isPassword && !showPassword) 
-                    PasswordVisualTransformation() else VisualTransformation.None
+                visualTransformation = if (
+                    isPassword && !showPassword
+                ) {
+                    PasswordVisualTransformation()
+                } else {
+                    VisualTransformation.None
+                }
             )
+
+            if (isPassword && onTogglePassword != null) {
+                IconButton(
+                    onClick = onTogglePassword,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (showPassword) {
+                            Icons.Default.VisibilityOff
+                        } else {
+                            Icons.Default.Visibility
+                        },
+                        contentDescription = "Toggle password visibility",
+                        tint = SettingsMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun TestConnectionButton(
-    apiKey: String,
-    baseUrl: String,
-    model: String,
-    onSave: (String, String, String, String) -> Unit
+private fun SaveProviderButton(
+    onClick: () -> Unit
 ) {
-    var testState by remember { mutableStateOf<TestState>(TestState.Idle) }
-    
-    val borderColor by animateColorAsState(
-        targetValue = when (testState) {
-            is TestState.Idle -> VoidColor.VioletDim
-            is TestState.Loading -> VoidColor.Violet
-            is TestState.Success -> VoidColor.Green
-            is TestState.Error -> VoidColor.Red
-        },
-        animationSpec = tween(200),
-        label = "btn_border"
-    )
-    
-    val textColor = when (testState) {
-        is TestState.Idle -> VoidColor.Violet
-        is TestState.Loading -> VoidColor.Violet
-        is TestState.Success -> VoidColor.Green
-        is TestState.Error -> VoidColor.Red
-    }
-    
     OutlinedButton(
-        onClick = {
-            onSave("Groq", baseUrl, apiKey, model)
-            testState = TestState.Success(150)
-        },
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, borderColor),
+        border = BorderStroke(1.dp, SettingsViolet),
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = textColor
+            contentColor = SettingsViolet
         )
     ) {
-        when (val state = testState) {
-            is TestState.Idle -> Text("Test Connection")
-            is TestState.Loading -> CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                strokeWidth = 2.dp,
-                color = VoidColor.Violet
-            )
-            is TestState.Success -> {
-                Icon(Icons.Default.Check, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Connected — ${state.ms}ms")
-            }
-            is TestState.Error -> {
-                Text("Failed — check key")
-            }
-        }
+        Text(
+            text = "Save Provider",
+            fontSize = 14.sp
+        )
     }
-}
-
-sealed class TestState {
-    data object Idle : TestState()
-    data object Loading : TestState()
-    data class Success(val ms: Long) : TestState()
-    data class Error(val message: String) : TestState()
 }
 
 @Composable
@@ -643,65 +618,54 @@ private fun SettingsToggleRow(
     title: String,
     subtitle: String,
     enabled: Boolean,
-    onToggle: (() -> Unit)? = null
+    onToggle: () -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
-            .then(
-                if (onToggle != null) Modifier.clickable { onToggle() }
-                else Modifier
-            ),
+            .height(68.dp)
+            .clickable { onToggle() },
         shape = RoundedCornerShape(16.dp),
-        color = VoidColor.Void900,
-        border = BorderStroke(1.dp, VoidColor.BorderSubtle)
+        color = SettingsSurface,
+        border = BorderStroke(1.dp, SettingsBorder)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Default.Mic,
                 contentDescription = null,
-                tint = VoidColor.TextSecondary,
+                tint = SettingsSecondary,
                 modifier = Modifier.size(24.dp)
             )
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = TextStyle(
-                        fontFamily = FontFamily.Default,
-                        fontWeight = FontWeight(500),
-                        fontSize = 14.sp,
-                        color = VoidColor.TextPrimary
-                    )
+                    fontSize = 14.sp,
+                    color = SettingsText
                 )
+
                 Text(
                     text = subtitle,
-                    style = TextStyle(
-                        fontFamily = FontFamily.Default,
-                        fontWeight = FontWeight(400),
-                        fontSize = 11.sp,
-                        color = VoidColor.TextDisabled
-                    )
+                    fontSize = 11.sp,
+                    color = SettingsMuted
                 )
             }
-            
+
             Switch(
                 checked = enabled,
-                onCheckedChange = { onToggle?.invoke() },
-                enabled = onToggle != null,
+                onCheckedChange = { onToggle() },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = VoidColor.TextPrimary,
-                    checkedTrackColor = VoidColor.Violet,
-                    uncheckedThumbColor = VoidColor.TextDisabled,
-                    uncheckedTrackColor = VoidColor.Void600
+                    checkedThumbColor = SettingsText,
+                    checkedTrackColor = SettingsViolet,
+                    uncheckedThumbColor = SettingsMuted,
+                    uncheckedTrackColor = SettingsSurfaceLight
                 )
             )
         }
@@ -713,19 +677,15 @@ private fun PermissionRow(
     title: String,
     subtitle: String
 ) {
-    val isGranted by remember { mutableStateOf(false) }
-    
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(64.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = VoidColor.Void900,
-        border = BorderStroke(1.dp, VoidColor.BorderSubtle)
+        color = SettingsSurface,
+        border = BorderStroke(1.dp, SettingsBorder)
     ) {
         Row(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -733,44 +693,37 @@ private fun PermissionRow(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(VoidColor.Red.copy(alpha = 0.12f)),
+                    .background(SettingsRed.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = VoidColor.Red,
+                    tint = SettingsRed,
                     modifier = Modifier.size(20.dp)
                 )
             }
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = TextStyle(
-                        fontFamily = FontFamily.Default,
-                        fontWeight = FontWeight(500),
-                        fontSize = 14.sp,
-                        color = VoidColor.TextPrimary
-                    )
+                    fontSize = 14.sp,
+                    color = SettingsText
                 )
+
                 Text(
                     text = subtitle,
-                    style = TextStyle(
-                        fontFamily = FontFamily.Default,
-                        fontWeight = FontWeight(400),
-                        fontSize = 11.sp,
-                        color = VoidColor.Red
-                    )
+                    fontSize = 11.sp,
+                    color = SettingsRed
                 )
             }
-            
+
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = VoidColor.Red
+                tint = SettingsRed
             )
         }
     }
@@ -781,25 +734,21 @@ private fun AboutSection() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = VoidColor.Void900,
-        border = BorderStroke(1.dp, VoidColor.BorderSubtle)
+        color = SettingsSurface,
+        border = BorderStroke(1.dp, SettingsBorder)
     ) {
         Column {
-            AboutRow(title = "Version", value = "M1.0 (build 1)")
-            Divider(thickness = 1.dp, color = VoidColor.BorderSubtle)
-            AboutRow(title = "License", value = "MIT Open Source")
-            Divider(thickness = 1.dp, color = VoidColor.BorderSubtle)
-            AboutRow(title = "GitHub", value = "tokenarc/open-jarvis", isLink = true)
-            Divider(thickness = 1.dp, color = VoidColor.BorderSubtle)
-            
+            AboutRow("Version", "M1.0 (build 1)")
+            Divider(color = SettingsBorder)
+            AboutRow("License", "MIT Open Source")
+            Divider(color = SettingsBorder)
+            AboutRow("GitHub", "tokenarc/open-jarvis", true)
+            Divider(color = SettingsBorder)
+
             Text(
                 text = "Built on Android · From Termux with love",
-                style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(400),
-                    fontSize = 12.sp,
-                    color = VoidColor.TextDisabled
-                ),
+                fontSize = 12.sp,
+                color = SettingsMuted,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -822,22 +771,14 @@ private fun AboutRow(
     ) {
         Text(
             text = title,
-            style = TextStyle(
-                fontFamily = FontFamily.Default,
-                fontWeight = FontWeight(400),
-                fontSize = 14.sp,
-                color = VoidColor.TextSecondary
-            )
+            fontSize = 14.sp,
+            color = SettingsSecondary
         )
-        
+
         Text(
             text = value,
-            style = TextStyle(
-                fontFamily = FontFamily.Default,
-                fontWeight = FontWeight(400),
-                fontSize = 14.sp,
-                color = if (isLink) VoidColor.Violet else VoidColor.TextPrimary
-            )
+            fontSize = 14.sp,
+            color = if (isLink) SettingsViolet else SettingsText
         )
     }
 }
@@ -850,11 +791,11 @@ private fun SavedToast(
 ) {
     LaunchedEffect(visible) {
         if (visible) {
-            kotlinx.coroutines.delay(1500)
+            delay(1500)
             onDismiss()
         }
     }
-    
+
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically { 40 } + fadeIn(),
@@ -863,18 +804,21 @@ private fun SavedToast(
     ) {
         Surface(
             shape = RoundedCornerShape(999.dp),
-            color = VoidColor.Void800,
-            border = BorderStroke(1.dp, VoidColor.Green.copy(alpha = 0.25f))
+            color = SettingsSurface,
+            border = BorderStroke(
+                1.dp,
+                SettingsGreen.copy(alpha = 0.25f)
+            )
         ) {
             Text(
                 text = "✓ saved",
-                style = TextStyle(
-                    fontFamily = FontFamily.Default,
-                    fontWeight = FontWeight(500),
-                    fontSize = 12.sp,
-                    color = VoidColor.Green
-                ),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = SettingsGreen,
+                modifier = Modifier.padding(
+                    horizontal = 16.dp,
+                    vertical = 8.dp
+                )
             )
         }
     }
