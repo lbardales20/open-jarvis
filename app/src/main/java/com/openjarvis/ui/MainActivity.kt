@@ -188,7 +188,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleVoiceCommand(command: String) {
-        val clean = command.trim().removePrefix("Jarvis").trim().trimEnd('.', ',', '!', '?')
+        val clean = command.trim().replace(Regex("(?i)^jarvis[,:\\s]*"), "").trim().trimEnd('.', ',', '!', '?')
 
         val youtubePattern = Regex(
             """(?i)(?:abre|abrir|open)\s+(?:la\s+)?(?:app\s+)?youtube\s+(?:y\s+)?(?:busca|buscar|search)\s+(.+)"""
