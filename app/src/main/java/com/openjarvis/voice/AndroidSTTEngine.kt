@@ -132,7 +132,8 @@ class AndroidSTTEngine(private val context: Context) : STTEngine {
 
     override fun startListening(
         onResult: (String?) -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        languageTag: String?
     ) {
         currentCallback = onResult
         currentErrorCallback = onError
@@ -159,7 +160,7 @@ class AndroidSTTEngine(private val context: Context) : STTEngine {
                     )
                     putExtra(
                         RecognizerIntent.EXTRA_LANGUAGE,
-                        Locale.getDefault().toLanguageTag()
+                        languageTag ?: Locale.getDefault().toLanguageTag()
                     )
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
