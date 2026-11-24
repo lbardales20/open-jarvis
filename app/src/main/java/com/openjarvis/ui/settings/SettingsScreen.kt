@@ -55,6 +55,8 @@ fun SettingsScreen(
     initialSpeakResults: Boolean = true,
     onVoiceEnabledChange: (Boolean) -> Unit = {},
     onSpeakResultsChange: (Boolean) -> Unit = {},
+    initialLanguage: String = "es-ES",
+    onLanguageChange: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedProvider by remember { mutableStateOf("Groq") }
@@ -67,6 +69,7 @@ fun SettingsScreen(
     var savedVisible by remember { mutableStateOf(false) }
     var voiceEnabled by remember(initialVoiceEnabled) { mutableStateOf(initialVoiceEnabled) }
     var speakResults by remember(initialSpeakResults) { mutableStateOf(initialSpeakResults) }
+    var assistantLanguage by remember(initialLanguage) { mutableStateOf(initialLanguage) }
     var sttMode by remember { mutableStateOf("Pulsar para hablar") }
 
     LaunchedEffect(selectedProvider) {
@@ -187,6 +190,36 @@ fun SettingsScreen(
                             onSpeakResultsChange(speakResults)
                         }
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                assistantLanguage = if (assistantLanguage == "es-ES") "en-US" else "es-ES"
+                                onLanguageChange(assistantLanguage)
+                            },
+                        shape = RoundedCornerShape(16.dp),
+                        color = SettingsSurface,
+                        border = BorderStroke(1.dp, SettingsBorder)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Idioma del asistente", color = SettingsText, fontSize = 14.sp)
+                                Text("Idioma para reconocer tus órdenes", color = SettingsMuted, fontSize = 11.sp)
+                            }
+                            Text(
+                                if (assistantLanguage == "es-ES") "Español" else "English",
+                                color = SettingsViolet,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
